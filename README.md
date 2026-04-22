@@ -1,8 +1,8 @@
 # dep-diff-mcp
 
-MCP server that reads dependency changelogs and tells you what's risky in an upgrade.
+MCP server that translates a lockfile diff into a human-readable upgrade plan.
 
-Point your AI assistant (Cursor, Claude Desktop, Claude Code) at a Dependabot PR, `npm outdated` output, or any pair of package versions, and get back a ranked risk report: semver class, breaking changes pulled from GitHub release notes, CVEs fixed in the range, migration guide links, and a clear recommendation per package.
+Point your AI assistant (Cursor, Claude Desktop, Claude Code) at a Dependabot PR, `npm outdated` output, or any pair of package versions, and get back a ranked upgrade plan: semver class, breaking changes pulled from GitHub release notes, CVEs fixed in the range, migration guide links, and a clear recommendation per package.
 
 ## Install
 
