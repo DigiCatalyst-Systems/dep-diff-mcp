@@ -13,16 +13,57 @@ Add to your MCP client config (Cursor: `~/.cursor/mcp.json`, Claude Desktop: `cl
   "mcpServers": {
     "dep-diff": {
       "command": "npx",
-      "args": ["-y", "@digicatalyst/dep-diff-mcp"],
-      "env": { "GITHUB_TOKEN": "ghp_your_token" }
+      "args": ["-y", "@digicatalyst/dep-diff-mcp"]
     }
   }
 }
 ```
 
-Create a GitHub token at <https://github.com/settings/tokens> (fine-grained, no scopes needed — public repo read access is the default). Without a token you get 60 GitHub API requests per hour, which runs out on the first bulk call.
+Restart your MCP client. Ask something like "what's risky in this Dependabot PR?" and the tools are invoked automatically.
 
-Restart your MCP client. Ask something like "what's risky in this Dependabot PR?" and the tools will be invoked automatically.
+## GitHub token (optional but recommended)
+
+The server hits the GitHub API to read release notes. Without a token you get 60 requests per hour (GitHub's anonymous limit) — enough for occasional single-package queries, not enough for bulk lockfile analysis.
+
+The server resolves a token in this order:
+
+1. `GITHUB_TOKEN` environment variable, if set.
+2. `gh auth token` — if the [GitHub CLI](https://cli.github.com) is installed and authenticated, the server uses that token automatically. No config change needed.
+3. Anonymous (60 req/hr).
+
+### Recommended: use the `gh` CLI
+
+If you already have `gh` installed (`brew install gh && gh auth login`), stop here — the server picks up your existing auth. No plaintext token anywhere.
+
+### Alternative: environment variable
+
+Create a **fine-grained** token at <https://github.com/settings/tokens>:
+
+- **Token name:** `dep-diff-mcp`
+- **Expiration:** 90 days (rotate periodically)
+- **Repository access:** `Public Repositories (read-only)` — no private repo access
+- **Permissions:** none beyond the default public read — do **not** grant `repo`, `workflow`, `user`, or any write scope
+
+Then reference it in the MCP config:
+
+```json
+{
+  "mcpServers": {
+    "dep-diff": {
+      "command": "npx",
+      "args": ["-y", "@digicatalyst/dep-diff-mcp"],
+      "env": { "GITHUB_TOKEN": "github_pat_xxx" }
+    }
+  }
+}
+```
+
+### Security notes
+
+- This config file lives on your disk in plaintext. Keep perms tight (`chmod 600`) and **do not paste the token into AI chats, issues, or shared screens** — transcripts are often retained.
+- The token in this config should be least-privilege (public repo read only). Even leaked, it can only read public data you could already read.
+- Rotate tokens periodically. Revoke any token that may have been exposed at <https://github.com/settings/tokens>.
+- The server never writes the token to stdout/stderr or the response payload.
 
 ## Tools
 

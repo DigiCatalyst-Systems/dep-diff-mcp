@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import pLimit from "p-limit";
+import { execFileSync } from "node:child_process";
 import { analyzePackageChange, type Ecosystem } from "./analyzer.js";
 
 const limit = pLimit(8);
@@ -12,8 +13,30 @@ const server = new McpServer({
 	version: "0.1.0",
 });
 
+function resolveGitHubToken(): string | undefined {
+	const envToken = process.env.GITHUB_TOKEN?.trim();
+	if (envToken) return envToken;
+	try {
+		const ghToken = execFileSync("gh", ["auth", "token"], {
+			encoding: "utf8",
+			stdio: ["ignore", "pipe", "ignore"],
+			timeout: 2000,
+		}).trim();
+		if (ghToken) {
+			process.stderr.write("[dep-diff] Using token from `gh auth token`.\n");
+			return ghToken;
+		}
+	} catch {
+		// gh not installed or not authed; fall through to anonymous mode
+	}
+	process.stderr.write(
+		"[dep-diff] No GITHUB_TOKEN set and `gh` CLI unavailable. Running anonymous (60 req/hr).\n"
+	);
+	return undefined;
+}
+
 const ecosystemSchema = z.enum(["npm", "pypi"]).describe("Package ecosystem");
-const githubToken = process.env.GITHUB_TOKEN;
+const githubToken = resolveGitHubToken();
 
 server.registerTool(
 	"analyze_package_change",
