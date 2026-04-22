@@ -1,0 +1,58 @@
+{
+	"name": "@digicatalyst/dep-diff-mcp",
+	"version": "0.0.1",
+	"description": "MCP server that reads dependency changelogs and tells you what's risky in an upgrade.",
+	"type": "module",
+	"main": "dist/server.js",
+	"bin": {
+		"dep-diff-mcp": "dist/server.js"
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"build": "tsc",
+		"prepublishOnly": "npm run build",
+		"dev": "tsx src/server.ts",
+		"start": "node dist/server.js",
+		"inspect": "npx @modelcontextprotocol/inspector node dist/server.js"
+	},
+	"keywords": [
+		"mcp",
+		"model-context-protocol",
+		"dependencies",
+		"changelog",
+		"cve",
+		"dependabot",
+		"cursor"
+	],
+	"author": "Kaustubh Ghodke",
+	"organization": "Digicatalyst Systems",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/DigiCatalyst-Systems/dep-diff-mcp.git"
+	},
+	"homepage": "https://github.com/DigiCatalyst-Systems/dep-diff-mcp#readme",
+	"bugs": {
+		"url": "https://github.com/DigiCatalyst-Systems/dep-diff-mcp/issues"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.29.0",
+		"lru-cache": "^11.3.5",
+		"p-limit": "^7.3.0",
+		"semver": "^7.7.4",
+		"zod": "^4.3.6"
+	},
+	"devDependencies": {
+		"@types/node": "^25.6.0",
+		"@types/semver": "^7.7.1",
+		"tsx": "^4.21.0",
+		"typescript": "^6.0.3"
+	}
+}
