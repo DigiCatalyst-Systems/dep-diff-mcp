@@ -1,7 +1,7 @@
 {
 	"name": "@digicatalyst/dep-diff-mcp",
-	"version": "0.0.1",
-	"description": "MCP server that reads dependency changelogs and tells you what's risky in an upgrade.",
+	"version": "0.0.2",
+	"description": "MCP server that translates a lockfile diff into a human-readable upgrade plan.",
 	"type": "module",
 	"main": "dist/server.js",
 	"bin": {
