@@ -1,0 +1,7 @@
+# Default reviewer for all files
+* @kaustubhdgr8
+
+# Critical files require explicit review
+/src/analyzer.ts @kaustubhdgr8
+/.github/ @kaustubhdgr8
+/package.json @kaustubhdgr8
