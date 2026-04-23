@@ -1,6 +1,6 @@
 {
 	"name": "dep-diff",
-	"version": "0.1.8",
+	"version": "0.1.9",
 	"description": "Translates a lockfile diff into a human-readable upgrade plan for npm and PyPI.",
 	"author": {
 		"name": "Kaustubh Ghodke",
