@@ -1,7 +1,7 @@
 {
 	"name": "@digicatalyst/dep-diff-mcp",
 	"mcpName": "io.github.DigiCatalyst-Systems/dep-diff-mcp",
-	"version": "0.1.10",
+	"version": "0.1.9",
 	"description": "MCP server that translates a lockfile diff into a human-readable upgrade plan.",
 	"type": "module",
 	"main": "dist/server.js",
