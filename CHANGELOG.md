@@ -12,6 +12,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Ecosystem expansion: Cargo, go.mod, Maven.
 - Lockfile-diff parser tool.
 
+## [0.1.6] - 2026-04-23
+
+### Added
+
+- Worker serves `/.well-known/mcp/server-card.json` so Smithery's registry can skip live capability scanning (required when the scanner cannot introspect the endpoint automatically). Card advertises both tools with full inputSchema and authentication requirements.
+
 ## [0.1.5] - 2026-04-23
 
 ### Added
@@ -100,7 +106,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.2...v0.1.3
