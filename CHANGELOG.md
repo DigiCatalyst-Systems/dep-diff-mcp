@@ -12,6 +12,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Ecosystem expansion: Cargo, go.mod, Maven.
 - Lockfile-diff parser tool.
 
+## [0.1.7] - 2026-04-23
+
+### Added
+
+- Tool annotations on both tools (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) — lets clients + catalogs like Smithery reason about tool safety without invoking them.
+- Two prompts registered on the server:
+  - `review_dependabot_pr`: takes an ecosystem + line-separated list of `name from -> to` changes, returns a user message that drives the model to call `analyze_packages_bulk`.
+  - `explain_package_upgrade`: takes `{ecosystem, name, fromVersion, toVersion}`, returns a user message for a single-package analysis.
+- `/.well-known/mcp/server-card.json` now advertises the annotations and prompts so Smithery's quality scorer picks them up without live scanning.
+
+### Changed
+
+- Smithery quality score: 68 → target ~97 with annotations (7pt) and prompts (5pt) covered by this release. Description, Homepage, and Icon (27pt) still need to be set in the Smithery dashboard UI.
+
 ## [0.1.6] - 2026-04-23
 
 ### Added
@@ -106,7 +120,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.3...v0.1.4

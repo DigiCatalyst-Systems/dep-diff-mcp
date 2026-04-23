@@ -18,7 +18,7 @@ const ecosystemSchema = z.enum(["npm", "pypi"]).describe("Package ecosystem");
 export function createMcpServer(githubToken?: string): McpServer {
 	const server = new McpServer({
 		name: "dep-diff",
-		version: "0.1.6",
+		version: "0.1.7",
 	});
 
 	server.registerTool(
@@ -33,6 +33,13 @@ export function createMcpServer(githubToken?: string): McpServer {
 				"'is it safe to bump axios from 0.27 to 1.0', 'what does upgrading lodash 4.17.20 to 4.17.21 fix'). " +
 				"Supports npm and pypi. For analyzing many packages at once or a Dependabot batch, " +
 				"use analyze_packages_bulk instead.",
+			annotations: {
+				title: "Analyze a single dependency version change",
+				readOnlyHint: true,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: true,
+			},
 			inputSchema: {
 				ecosystem: ecosystemSchema,
 				name: z.string().min(1).describe("Package name (e.g. 'react', 'requests')"),
@@ -66,6 +73,13 @@ export function createMcpServer(githubToken?: string): McpServer {
 				"lockfile diff, or batch upgrade. Returns: total count, breakdown by semver class, total " +
 				"security fixes found, packages with breaking changes, and per-package details. " +
 				"Limit 50 packages per call (chunk larger lists).",
+			annotations: {
+				title: "Analyze multiple dependency changes in parallel",
+				readOnlyHint: true,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: true,
+			},
 			inputSchema: {
 				changes: z
 					.array(
@@ -130,6 +144,62 @@ export function createMcpServer(githubToken?: string): McpServer {
 				};
 			}
 		}
+	);
+
+	server.registerPrompt(
+		"review_dependabot_pr",
+		{
+			title: "Review a Dependabot or batch upgrade PR",
+			description:
+				"Generates a user message instructing the model to analyze a list of dependency " +
+				"changes, then call analyze_packages_bulk to produce a ranked risk report.",
+			argsSchema: {
+				ecosystem: z.enum(["npm", "pypi"]).describe("Package ecosystem"),
+				changes: z
+					.string()
+					.describe(
+						"Raw list of changes, one per line, formatted as 'name from_version -> to_version'. Example:\nlodash 4.17.20 -> 4.17.21\naxios 0.27.0 -> 1.7.0"
+					),
+			},
+		},
+		({ ecosystem, changes }) => ({
+			messages: [
+				{
+					role: "user",
+					content: {
+						type: "text",
+						text: `I have a Dependabot/batch upgrade with the following ${ecosystem} package changes:\n\n${changes}\n\nParse each line into {ecosystem, name, fromVersion, toVersion}, call analyze_packages_bulk with the list, and give me a ranked risk summary. Highlight anything with security fixes or major breaking changes first.`,
+					},
+				},
+			],
+		})
+	);
+
+	server.registerPrompt(
+		"explain_package_upgrade",
+		{
+			title: "Explain a single package upgrade",
+			description:
+				"Generates a user message asking the model to analyze a specific package version bump " +
+				"and explain the risk.",
+			argsSchema: {
+				ecosystem: z.enum(["npm", "pypi"]).describe("Package ecosystem"),
+				name: z.string().describe("Package name"),
+				fromVersion: z.string().describe("Current version"),
+				toVersion: z.string().describe("Target version"),
+			},
+		},
+		({ ecosystem, name, fromVersion, toVersion }) => ({
+			messages: [
+				{
+					role: "user",
+					content: {
+						type: "text",
+						text: `Analyze the upgrade of ${ecosystem} package "${name}" from ${fromVersion} to ${toVersion}. Call analyze_package_change, then summarize: semver class, breaking changes, security fixes, migration steps, and your recommendation. Be concise.`,
+					},
+				},
+			],
+		})
 	);
 
 	return server;

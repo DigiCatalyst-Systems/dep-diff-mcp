@@ -25,7 +25,7 @@ export function resolveTokenFromRequest(request: Request): string | undefined {
 const SERVER_CARD = {
 	serverInfo: {
 		name: "dep-diff",
-		version: "0.1.6",
+		version: "0.1.7",
 	},
 	authentication: {
 		required: false,
@@ -35,6 +35,13 @@ const SERVER_CARD = {
 			name: "analyze_package_change",
 			description:
 				"Given one package and two versions (from -> to), returns a structured upgrade analysis: semver classification, GitHub release notes summary, detected breaking changes, security advisories fixed in the range, migration guide links, and a clear recommendation. Use when the user asks about a specific package upgrade. Supports npm and pypi. For analyzing many packages at once, use analyze_packages_bulk instead.",
+			annotations: {
+				title: "Analyze a single dependency version change",
+				readOnlyHint: true,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: true,
+			},
 			inputSchema: {
 				type: "object",
 				properties: {
@@ -50,6 +57,13 @@ const SERVER_CARD = {
 			name: "analyze_packages_bulk",
 			description:
 				"Analyzes a list of package upgrades in parallel and returns a unified risk report with packages ranked by recommendation level (security > caution > review > likely-safe > safe). Use when the user provides many dependency changes from a Dependabot PR, npm outdated output, lockfile diff, or batch upgrade. Returns: total count, breakdown by semver class, total security fixes found, packages with breaking changes, and per-package details. Limit 50 packages per call.",
+			annotations: {
+				title: "Analyze multiple dependency changes in parallel",
+				readOnlyHint: true,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: true,
+			},
 			inputSchema: {
 				type: "object",
 				properties: {
@@ -75,7 +89,33 @@ const SERVER_CARD = {
 		},
 	],
 	resources: [],
-	prompts: [],
+	prompts: [
+		{
+			name: "review_dependabot_pr",
+			description:
+				"Generates a user message instructing the model to analyze a list of dependency changes, then call analyze_packages_bulk to produce a ranked risk report.",
+			arguments: [
+				{ name: "ecosystem", description: "Package ecosystem (npm or pypi)", required: true },
+				{
+					name: "changes",
+					description:
+						"Raw list of changes, one per line, formatted as 'name from_version -> to_version'.",
+					required: true,
+				},
+			],
+		},
+		{
+			name: "explain_package_upgrade",
+			description:
+				"Generates a user message asking the model to analyze a specific package version bump and explain the risk.",
+			arguments: [
+				{ name: "ecosystem", description: "Package ecosystem (npm or pypi)", required: true },
+				{ name: "name", description: "Package name", required: true },
+				{ name: "fromVersion", description: "Current version", required: true },
+				{ name: "toVersion", description: "Target version", required: true },
+			],
+		},
+	],
 } as const;
 
 export default {

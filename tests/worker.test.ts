@@ -83,7 +83,7 @@ describe("worker fetch handler", () => {
 		assert.equal(res.status, 404);
 	});
 
-	it("/.well-known/mcp/server-card.json returns the Smithery card", async () => {
+	it("/.well-known/mcp/server-card.json returns the Smithery card with tools, prompts, and annotations", async () => {
 		const res = await workerHandler.fetch(
 			new Request("https://example.com/.well-known/mcp/server-card.json")
 		);
@@ -91,10 +91,22 @@ describe("worker fetch handler", () => {
 		assert.match(res.headers.get("content-type") ?? "", /application\/json/);
 		const card = (await res.json()) as {
 			serverInfo?: { name?: string };
-			tools?: { name: string }[];
+			tools?: {
+				name: string;
+				annotations?: { readOnlyHint?: boolean; openWorldHint?: boolean };
+			}[];
+			prompts?: { name: string }[];
 		};
 		assert.equal(card.serverInfo?.name, "dep-diff");
+
 		assert.ok(card.tools?.some((t) => t.name === "analyze_package_change"));
 		assert.ok(card.tools?.some((t) => t.name === "analyze_packages_bulk"));
+		for (const t of card.tools ?? []) {
+			assert.equal(t.annotations?.readOnlyHint, true, `${t.name} needs readOnlyHint`);
+			assert.equal(t.annotations?.openWorldHint, true, `${t.name} needs openWorldHint`);
+		}
+
+		assert.ok(card.prompts?.some((p) => p.name === "review_dependabot_pr"));
+		assert.ok(card.prompts?.some((p) => p.name === "explain_package_upgrade"));
 	});
 });
