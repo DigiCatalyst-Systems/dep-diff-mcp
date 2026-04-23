@@ -1,17 +1,17 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.digicatalyst-systems/dep-diff-mcp",
-  "description": "MCP server that translates a lockfile diff into a human-readable upgrade plan for npm and PyPI ecosystems.",
+  "name": "io.github.DigiCatalyst-Systems/dep-diff-mcp",
+  "description": "Translates a lockfile diff into a human-readable upgrade plan for npm and PyPI.",
   "repository": {
     "url": "https://github.com/DigiCatalyst-Systems/dep-diff-mcp",
     "source": "github"
   },
-  "version": "0.1.2",
+  "version": "0.1.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@digicatalyst/dep-diff-mcp",
-      "version": "0.1.2",
+      "version": "0.1.3",
       "transport": {
         "type": "stdio"
       }
