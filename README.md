@@ -6,7 +6,40 @@ Point your AI assistant (Cursor, Claude Desktop, Claude Code) at a Dependabot PR
 
 ## Install
 
-Add to your MCP client config (Cursor: `~/.cursor/mcp.json`, Claude Desktop: `claude_desktop_config.json`):
+### Claude Code
+
+One command, user scope (available in every project):
+
+```bash
+claude mcp add -s user dep-diff -- npx -y @digicatalyst/dep-diff-mcp
+```
+
+Project scope (writes `.mcp.json` at repo root, team-shared):
+
+```bash
+claude mcp add -s project dep-diff -- npx -y @digicatalyst/dep-diff-mcp
+```
+
+With an explicit token (skip this if you have the `gh` CLI authenticated — see [GitHub token](#github-token-optional-but-recommended) below):
+
+```bash
+claude mcp add -s user --env GITHUB_TOKEN=ghp_xxx dep-diff -- npx -y @digicatalyst/dep-diff-mcp
+```
+
+Verify:
+
+```bash
+claude mcp list
+```
+
+Restart the Claude Code session to pick up the server.
+
+### Cursor and Claude Desktop
+
+Add to your MCP client config:
+
+- Cursor: `~/.cursor/mcp.json`
+- Claude Desktop: `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
 
 ```json
 {
