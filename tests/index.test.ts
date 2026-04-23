@@ -21,6 +21,28 @@ describe("createMcpServer", () => {
 		assert.ok("analyze_package_change" in tools, "analyze_package_change must be registered");
 		assert.ok("analyze_packages_bulk" in tools, "analyze_packages_bulk must be registered");
 	});
+
+	it("registers review_dependabot_pr and explain_package_upgrade prompts", () => {
+		const s = createMcpServer();
+		const prompts = (s as unknown as { _registeredPrompts: Record<string, unknown> })._registeredPrompts;
+		assert.ok(prompts, "server should expose a prompt registry");
+		assert.ok("review_dependabot_pr" in prompts, "review_dependabot_pr must be registered");
+		assert.ok("explain_package_upgrade" in prompts, "explain_package_upgrade must be registered");
+	});
+
+	it("tools include annotations (readOnlyHint, idempotentHint, openWorldHint)", () => {
+		const s = createMcpServer();
+		const tools = (s as unknown as {
+			_registeredTools: Record<string, { annotations?: Record<string, unknown> }>;
+		})._registeredTools;
+		for (const name of ["analyze_package_change", "analyze_packages_bulk"]) {
+			const t = tools[name];
+			assert.ok(t?.annotations, `${name} must have annotations`);
+			assert.equal(t.annotations.readOnlyHint, true, `${name} readOnlyHint must be true`);
+			assert.equal(t.annotations.idempotentHint, true, `${name} idempotentHint must be true`);
+			assert.equal(t.annotations.openWorldHint, true, `${name} openWorldHint must be true`);
+		}
+	});
 });
 
 describe("createSandboxServer", () => {
