@@ -1,0 +1,8 @@
+{
+	"mcpServers": {
+		"dep-diff": {
+			"command": "npx",
+			"args": ["-y", "@digicatalyst/dep-diff-mcp"]
+		}
+	}
+}

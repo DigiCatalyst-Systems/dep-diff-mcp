@@ -1,0 +1,24 @@
+{
+	"name": "dep-diff",
+	"version": "0.1.7",
+	"description": "Translates a lockfile diff into a human-readable upgrade plan for npm and PyPI.",
+	"author": {
+		"name": "Kaustubh Ghodke",
+		"url": "https://github.com/kaustubhdgr8"
+	},
+	"homepage": "https://github.com/DigiCatalyst-Systems/dep-diff-mcp",
+	"repository": "https://github.com/DigiCatalyst-Systems/dep-diff-mcp",
+	"license": "MIT",
+	"keywords": [
+		"mcp",
+		"dependencies",
+		"changelog",
+		"cve",
+		"dependabot",
+		"npm",
+		"pypi",
+		"upgrade",
+		"security"
+	],
+	"mcpServers": "./.mcp.json"
+}
