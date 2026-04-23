@@ -138,3 +138,7 @@ export function createMcpServer(githubToken?: string): McpServer {
 export default function ({ config }: { config: z.infer<typeof configSchema> }) {
 	return createMcpServer(config.githubToken).server;
 }
+
+export function createSandboxServer() {
+	return createMcpServer(undefined).server;
+}
