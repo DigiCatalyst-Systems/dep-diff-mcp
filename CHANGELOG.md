@@ -12,6 +12,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Ecosystem expansion: Cargo, go.mod, Maven.
 - Lockfile-diff parser tool.
 
+## [0.1.4] - 2026-04-23
+
+### Changed
+
+- Split server construction from transport binding. `src/index.ts` now exports a `createMcpServer(token)` factory and a Smithery-compatible default export (`configSchema` + `default function({config})`). `src/server.ts` becomes a thin stdio launcher that calls the factory and binds `StdioServerTransport`.
+- `package.json` gains a `module` field pointing to `dist/index.js` so Smithery's bundler can locate the streamable-http entry.
+
+### Why
+
+- Smithery deploys wrap MCP servers in a streamable-HTTP transport and need an exported factory, not a self-wiring stdio entry. The factory split lets both transports share one implementation without duplication.
+
 ## [0.1.3] - 2026-04-23
 
 ### Fixed
@@ -76,7 +87,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.0...v0.1.1
