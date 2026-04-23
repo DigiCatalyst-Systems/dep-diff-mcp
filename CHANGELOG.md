@@ -12,6 +12,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Ecosystem expansion: Cargo, go.mod, Maven.
 - Lockfile-diff parser tool.
 
+## [0.1.3] - 2026-04-23
+
+### Fixed
+
+- `mcpName` in `package.json` and `name` in `server.json` now use `io.github.DigiCatalyst-Systems/...` with the correct GitHub organization casing (was lowercase). The MCP Registry enforces case-sensitive namespace ownership derived from GitHub org identity, so the lowercase form was rejected with a 403.
+
+### Changed
+
+- `server.json` description shortened to fit the registry's 100-character limit.
+
 ## [0.1.2] - 2026-04-23
 
 ### Added
@@ -66,7 +76,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.0.1...v0.1.0
