@@ -12,6 +12,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Ecosystem expansion: Cargo, go.mod, Maven.
 - Lockfile-diff parser tool.
 
+## [0.1.1] - 2026-04-22
+
+### Added
+
+- `mcpName` field in `package.json` and a root-level `server.json` so the package can be listed on the official MCP Registry (`io.github.digicatalyst-systems/dep-diff-mcp`).
+
+### Changed
+
+- First release published through CI via the `publish` GitHub Actions workflow using npm Trusted Publisher / OIDC. Tarballs now carry an npm provenance attestation.
+
 ## [0.1.0] - 2026-04-22
 
 ### Added
@@ -48,6 +58,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/releases/tag/v0.0.1
