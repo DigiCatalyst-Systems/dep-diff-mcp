@@ -2,15 +2,8 @@ name: deploy-worker
 
 on:
   push:
-    branches: [main]
-    paths:
-      - 'src/worker.ts'
-      - 'src/index.ts'
-      - 'src/analyzer.ts'
-      - 'wrangler.jsonc'
-      - 'package.json'
-      - 'package-lock.json'
-      - '.github/workflows/deploy-worker.yml'
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
