@@ -12,6 +12,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Ecosystem expansion: Cargo, go.mod, Maven.
 - Lockfile-diff parser tool.
 
+## [0.1.5] - 2026-04-23
+
+### Added
+
+- Cloudflare Worker entry (`src/worker.ts`) exposing the server as streamable-HTTP, so the same factory can be hosted on free Cloudflare Workers and surfaced as a Smithery "Deploy via URL" endpoint.
+- `.github/workflows/deploy-worker.yml`: auto-deploys the Worker on `main` pushes that touch worker code; uses `CLOUDFLARE_API_TOKEN` repo secret. Also manually dispatchable.
+- `createSandboxServer()` export in `src/index.ts` so Smithery's capability scanner can introspect without real credentials.
+- Tests: 10 cases for `src/index.ts` (factory, sandbox, default export, configSchema), 12 cases for `src/worker.ts` (token resolver + handler). 61 tests pass total.
+
+### Changed
+
+- Worker reads `GITHUB_TOKEN` per-request: `?githubToken=...` query param or base64-encoded `?config={...}`. No shared Worker secret — each user supplies their own token, individual rate limits.
+
 ## [0.1.4] - 2026-04-23
 
 ### Changed
@@ -87,7 +100,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.1...v0.1.2
