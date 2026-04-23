@@ -1,7 +1,7 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createMcpServer } from "./index.js";
 
-function resolveTokenFromRequest(request: Request): string | undefined {
+export function resolveTokenFromRequest(request: Request): string | undefined {
 	const url = new URL(request.url);
 
 	const direct = url.searchParams.get("githubToken");
