@@ -13,12 +13,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Lockfile-diff parser tool.
 - Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
-## [0.1.10] - 2026-04-23
-
-### Fixed
-
-- Install snippets in README, blog post, and project `.mcp.json` switched from bare `npx -y @digicatalyst/dep-diff-mcp` to the explicit `npx -y -p @digicatalyst/dep-diff-mcp@latest dep-diff-mcp` form. The bare form intermittently failed with `dep-diff-mcp: command not found` on certain npx cache states (scoped pkg, bin name resolution edge case in npm 11). Explicit `-p pkg@latest binname` form is reliable across cache states.
-
 ## [0.1.9] - 2026-04-23
 
 ### Removed
