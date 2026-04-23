@@ -6,12 +6,12 @@
     "url": "https://github.com/DigiCatalyst-Systems/dep-diff-mcp",
     "source": "github"
   },
-  "version": "0.1.9",
+  "version": "0.1.10",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@digicatalyst/dep-diff-mcp",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "transport": {
         "type": "stdio"
       }

@@ -11,19 +11,19 @@ Point your AI assistant (Cursor, Claude Desktop, Claude Code) at a Dependabot PR
 One command, user scope (available in every project):
 
 ```bash
-claude mcp add -s user dep-diff -- npx -y @digicatalyst/dep-diff-mcp
+claude mcp add -s user dep-diff -- npx -y -p @digicatalyst/dep-diff-mcp@latest dep-diff-mcp
 ```
 
 Project scope (writes `.mcp.json` at repo root, team-shared):
 
 ```bash
-claude mcp add -s project dep-diff -- npx -y @digicatalyst/dep-diff-mcp
+claude mcp add -s project dep-diff -- npx -y -p @digicatalyst/dep-diff-mcp@latest dep-diff-mcp
 ```
 
 With an explicit token (skip this if you have the `gh` CLI authenticated — see [GitHub token](#github-token-optional-but-recommended) below):
 
 ```bash
-claude mcp add -s user --env GITHUB_TOKEN=ghp_xxx dep-diff -- npx -y @digicatalyst/dep-diff-mcp
+claude mcp add -s user --env GITHUB_TOKEN=ghp_xxx dep-diff -- npx -y -p @digicatalyst/dep-diff-mcp@latest dep-diff-mcp
 ```
 
 Verify:
@@ -46,7 +46,7 @@ Add to your MCP client config:
   "mcpServers": {
     "dep-diff": {
       "command": "npx",
-      "args": ["-y", "@digicatalyst/dep-diff-mcp"]
+      "args": ["-y", "-p", "@digicatalyst/dep-diff-mcp@latest", "dep-diff-mcp"]
     }
   }
 }
@@ -84,7 +84,7 @@ Then reference it in the MCP config:
   "mcpServers": {
     "dep-diff": {
       "command": "npx",
-      "args": ["-y", "@digicatalyst/dep-diff-mcp"],
+      "args": ["-y", "-p", "@digicatalyst/dep-diff-mcp@latest", "dep-diff-mcp"],
       "env": { "GITHUB_TOKEN": "github_pat_xxx" }
     }
   }
