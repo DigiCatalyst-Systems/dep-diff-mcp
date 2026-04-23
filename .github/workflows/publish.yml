@@ -16,12 +16,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
 
-      - name: Upgrade npm for Trusted Publisher / OIDC support
-        run: npm install -g npm@latest
+      - name: Print npm version
+        run: npm --version
 
       - name: Verify tag matches package version
         run: |
