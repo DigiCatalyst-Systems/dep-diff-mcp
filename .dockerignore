@@ -1,0 +1,16 @@
+node_modules
+dist
+.git
+.github
+.vscode
+.idea
+evals.md
+CHANGELOG.md
+README.md
+LICENSE
+CLAUDE.md
+.env
+.env.example
+.gitignore
+.dockerignore
+server.json
