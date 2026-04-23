@@ -12,6 +12,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Ecosystem expansion: Cargo, go.mod, Maven.
 - Lockfile-diff parser tool.
 
+## [0.1.2] - 2026-04-23
+
+### Added
+
+- Test suite (`tests/analyzer.test.ts`) with 39 unit tests covering `classifyBump`, `extractGitHubRepo`, `extractBreakingChanges`, `extractMigrationLinks`, and `extractReleaseExcerpts`. Uses Node's built-in `node:test` runner plus `tsx` — zero new dependencies.
+- `npm test` script.
+- `.github/workflows/ci.yml` runs `npm ci && npm run build && npm test` on every push to `main` and every PR.
+
 ## [0.1.1] - 2026-04-22
 
 ### Added
@@ -58,7 +66,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/releases/tag/v0.0.1

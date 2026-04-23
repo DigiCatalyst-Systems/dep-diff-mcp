@@ -14,3 +14,5 @@ CLAUDE.md
 .gitignore
 .dockerignore
 server.json
+tests
+Dockerfile
