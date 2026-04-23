@@ -82,4 +82,19 @@ describe("worker fetch handler", () => {
 		const res = await workerHandler.fetch(new Request("https://example.com/nope"));
 		assert.equal(res.status, 404);
 	});
+
+	it("/.well-known/mcp/server-card.json returns the Smithery card", async () => {
+		const res = await workerHandler.fetch(
+			new Request("https://example.com/.well-known/mcp/server-card.json")
+		);
+		assert.equal(res.status, 200);
+		assert.match(res.headers.get("content-type") ?? "", /application\/json/);
+		const card = (await res.json()) as {
+			serverInfo?: { name?: string };
+			tools?: { name: string }[];
+		};
+		assert.equal(card.serverInfo?.name, "dep-diff");
+		assert.ok(card.tools?.some((t) => t.name === "analyze_package_change"));
+		assert.ok(card.tools?.some((t) => t.name === "analyze_packages_bulk"));
+	});
 });
