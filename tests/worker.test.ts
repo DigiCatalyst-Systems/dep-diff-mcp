@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import workerHandler, { resolveTokenFromRequest, extractAnalyticsEvent } from "../src/worker.ts";
+import workerHandler, { resolveTokenFromRequest } from "../src/worker.ts";
 
 function req(url: string): Request {
 	return new Request(url);
@@ -81,83 +81,6 @@ describe("worker fetch handler", () => {
 	it("unknown path returns 404", async () => {
 		const res = await workerHandler.fetch(new Request("https://example.com/nope"));
 		assert.equal(res.status, 404);
-	});
-
-	it("emits one analytics datapoint per /mcp POST with method + tool name", async () => {
-		const points: unknown[] = [];
-		const env = {
-			ANALYTICS: {
-				writeDataPoint: (p: unknown) => points.push(p),
-			},
-		};
-
-		const req = new Request("https://example.com/mcp", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				Accept: "application/json, text/event-stream",
-			},
-			body: JSON.stringify({
-				jsonrpc: "2.0",
-				id: 1,
-				method: "tools/call",
-				params: { name: "analyze_package_change", arguments: {} },
-			}),
-		});
-
-		await workerHandler.fetch(req, env as unknown as Parameters<typeof workerHandler.fetch>[1]);
-
-		assert.equal(points.length, 1, "expected exactly one analytics event");
-		const pt = points[0] as { blobs?: string[]; doubles?: number[]; indexes?: string[] };
-		assert.deepEqual(pt.blobs, ["tools/call", "analyze_package_change"]);
-		assert.deepEqual(pt.doubles, [1]);
-		assert.deepEqual(pt.indexes, ["tools/call"]);
-	});
-
-	it("does not emit analytics when ANALYTICS binding is absent", async () => {
-		const res = await workerHandler.fetch(
-			new Request("https://example.com/mcp", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Accept: "application/json, text/event-stream",
-				},
-				body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
-			})
-		);
-		assert.ok(res, "handler must still respond without analytics binding");
-	});
-
-	it("extractAnalyticsEvent parses method + params.name from JSON-RPC body", async () => {
-		const req = new Request("https://example.com/mcp", {
-			method: "POST",
-			body: JSON.stringify({ jsonrpc: "2.0", method: "prompts/get", params: { name: "review_dependabot_pr" } }),
-		});
-		const event = await extractAnalyticsEvent(req);
-		assert.deepEqual(event, { method: "prompts/get", toolOrPromptName: "review_dependabot_pr" });
-	});
-
-	it("extractAnalyticsEvent returns null for GET", async () => {
-		const event = await extractAnalyticsEvent(new Request("https://example.com/mcp"));
-		assert.equal(event, null);
-	});
-
-	it("extractAnalyticsEvent handles missing params.name", async () => {
-		const req = new Request("https://example.com/mcp", {
-			method: "POST",
-			body: JSON.stringify({ jsonrpc: "2.0", method: "initialize", params: {} }),
-		});
-		const event = await extractAnalyticsEvent(req);
-		assert.deepEqual(event, { method: "initialize", toolOrPromptName: "" });
-	});
-
-	it("extractAnalyticsEvent returns null for malformed body", async () => {
-		const req = new Request("https://example.com/mcp", {
-			method: "POST",
-			body: "not-json",
-		});
-		const event = await extractAnalyticsEvent(req);
-		assert.equal(event, null);
 	});
 
 	it("/.well-known/mcp/server-card.json returns the Smithery card with tools, prompts, and annotations", async () => {

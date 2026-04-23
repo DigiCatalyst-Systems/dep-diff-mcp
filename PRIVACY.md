@@ -34,14 +34,7 @@ The hosted endpoint at `https://dep-diff-mcp.digicatalyst-systems.workers.dev` r
 
 ## Telemetry
 
-The hosted Cloudflare Worker records **aggregate** usage counters via Cloudflare Analytics Engine. For each request to `/mcp` it writes one data point containing:
-
-- the JSON-RPC method name (e.g. `tools/call`, `prompts/get`, `initialize`), and
-- the tool or prompt name (e.g. `analyze_package_change`), if present.
-
-It does **not** record: tool arguments, package names queried, GitHub tokens, IP addresses, request bodies, or any user identifier. The operator uses these counts to decide whether continued hosting is worth the effort. If you object to even this aggregate counting, use the stdio install (`npx -y @digicatalyst/dep-diff-mcp`) — the stdio path sends no telemetry of any kind.
-
-The self-hosted stdio binary sends no telemetry.
+None. Neither the hosted Cloudflare Worker nor the self-hosted stdio binary records usage data, metrics, or analytics. If this changes in a future release, this document will be updated first and the change called out in `CHANGELOG.md`.
 
 ## Source code
 

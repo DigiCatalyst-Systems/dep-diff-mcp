@@ -11,14 +11,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Follow migration links and extract headings from linked upgrade guides.
 - Ecosystem expansion: Cargo, go.mod, Maven.
 - Lockfile-diff parser tool.
+- Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
-## [0.1.8] - 2026-04-23
+## [0.1.9] - 2026-04-23
 
-### Added
+### Removed
 
-- Cloudflare Analytics Engine binding (`ANALYTICS`, dataset `dep_diff_mcp_usage`). The Worker emits one aggregate data point per `/mcp` POST containing the JSON-RPC method name and tool/prompt name. No request bodies, arguments, tokens, or user identifiers are recorded. Used to decide whether continued hosting is worth the effort and whether to build a paid tier later.
-- `PRIVACY.md` updated to disclose the aggregate counter and reassure stdio users that the self-hosted binary sends zero telemetry.
-- 6 new tests around analytics emission, absence of binding, and JSON-RPC parsing.
+- Reverted the Cloudflare Analytics Engine binding and emission code introduced in 0.1.8. Analytics Engine requires a Cloudflare Workers Paid plan; the deploy failed on our free-plan account. PRIVACY.md updated to say no telemetry is currently collected. Plan: revisit once the account is upgraded.
+
+## [0.1.8] - 2026-04-23 [YANKED]
+
+**0.1.8 shipped to npm but the Worker deploy failed; the Analytics Engine code was never active on the hosted endpoint. 0.1.9 reverts it.**
 
 ## [0.1.7] - 2026-04-23
 
@@ -128,7 +131,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.5...v0.1.6
