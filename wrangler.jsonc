@@ -6,5 +6,11 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"observability": {
 		"enabled": true
-	}
+	},
+	"analytics_engine_datasets": [
+		{
+			"binding": "ANALYTICS",
+			"dataset": "dep_diff_mcp_usage"
+		}
+	]
 }

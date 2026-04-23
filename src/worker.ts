@@ -1,6 +1,10 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createMcpServer } from "./index.js";
 
+export interface Env {
+	ANALYTICS?: AnalyticsEngineDataset;
+}
+
 export function resolveTokenFromRequest(request: Request): string | undefined {
 	const url = new URL(request.url);
 
@@ -22,10 +26,33 @@ export function resolveTokenFromRequest(request: Request): string | undefined {
 	return undefined;
 }
 
+export interface AnalyticsEvent {
+	method: string;
+	toolOrPromptName: string;
+}
+
+export async function extractAnalyticsEvent(request: Request): Promise<AnalyticsEvent | null> {
+	if (request.method !== "POST") return null;
+	try {
+		const body = await request.clone().text();
+		if (!body) return null;
+		const parsed = JSON.parse(body) as {
+			method?: string;
+			params?: { name?: string };
+		};
+		const method = parsed.method;
+		if (!method || typeof method !== "string") return null;
+		const name = typeof parsed.params?.name === "string" ? parsed.params.name : "";
+		return { method, toolOrPromptName: name };
+	} catch {
+		return null;
+	}
+}
+
 const SERVER_CARD = {
 	serverInfo: {
 		name: "dep-diff",
-		version: "0.1.7",
+		version: "0.1.8",
 	},
 	authentication: {
 		required: false,
@@ -119,7 +146,7 @@ const SERVER_CARD = {
 } as const;
 
 export default {
-	async fetch(request: Request): Promise<Response> {
+	async fetch(request: Request, env: Env = {}): Promise<Response> {
 		const url = new URL(request.url);
 
 		if (url.pathname === "/" || url.pathname === "/health") {
@@ -149,6 +176,19 @@ export default {
 
 		if (url.pathname !== "/mcp") {
 			return new Response("Not Found", { status: 404 });
+		}
+
+		const event = await extractAnalyticsEvent(request);
+		if (event && env.ANALYTICS) {
+			try {
+				env.ANALYTICS.writeDataPoint({
+					blobs: [event.method, event.toolOrPromptName],
+					doubles: [1],
+					indexes: [event.method],
+				});
+			} catch {
+				// analytics failures must never break request handling
+			}
 		}
 
 		try {
