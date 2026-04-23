@@ -1,6 +1,6 @@
 {
 	"name": "@digicatalyst/dep-diff-mcp",
-	"version": "0.0.2",
+	"version": "0.1.0",
 	"description": "MCP server that translates a lockfile diff into a human-readable upgrade plan.",
 	"type": "module",
 	"main": "dist/server.js",
@@ -14,7 +14,7 @@
 		"CHANGELOG.md"
 	],
 	"scripts": {
-		"build": "tsc",
+		"build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
 		"prepublishOnly": "npm run build",
 		"dev": "tsx src/server.ts",
 		"start": "node dist/server.js",
