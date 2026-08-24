@@ -10,6 +10,35 @@ function b64(obj: unknown): string {
 	return Buffer.from(JSON.stringify(obj)).toString("base64");
 }
 
+const INITIALIZE = {
+	jsonrpc: "2.0",
+	id: 1,
+	method: "initialize",
+	params: {
+		protocolVersion: "2025-06-18",
+		capabilities: {},
+		clientInfo: { name: "test", version: "1" },
+	},
+};
+
+function rpcRequest(url: string, body: unknown = INITIALIZE): Request {
+	return new Request(url, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json, text/event-stream",
+		},
+		body: JSON.stringify(body),
+	});
+}
+
+/** Transport replies as either plain JSON or an SSE `data:` frame. */
+async function readRpc(res: Response): Promise<Record<string, unknown>> {
+	const text = await res.text();
+	const frame = text.match(/^data: (.+)$/m);
+	return JSON.parse(frame ? frame[1] : text) as Record<string, unknown>;
+}
+
 describe("resolveTokenFromRequest", () => {
 	it("returns undefined when no token is supplied", () => {
 		assert.equal(resolveTokenFromRequest(req("https://example.com/mcp")), undefined);
@@ -76,6 +105,33 @@ describe("worker fetch handler", () => {
 		assert.equal(res.status, 200);
 		const body = (await res.json()) as { name?: string };
 		assert.equal(body.name, "dep-diff-mcp");
+	});
+
+	it("POST / answers JSON-RPC instead of the descriptor", async () => {
+		const res = await workerHandler.fetch(rpcRequest("https://example.com/"));
+		assert.equal(res.status, 200);
+		const body = await readRpc(res);
+		assert.equal(body.jsonrpc, "2.0");
+		const result = body.result as { serverInfo?: { name?: string } } | undefined;
+		assert.equal(result?.serverInfo?.name, "dep-diff");
+	});
+
+	// The transport holds SSE streams open, so assert on headers and release the body
+	// rather than reading it to completion.
+	it("GET / negotiating SSE is handed to the transport, not the descriptor", async () => {
+		const res = await workerHandler.fetch(
+			new Request("https://example.com/", { headers: { Accept: "text/event-stream" } })
+		);
+		assert.match(res.headers.get("content-type") ?? "", /text\/event-stream/);
+		await res.body?.cancel();
+	});
+
+	it("DELETE / is not answered with the descriptor", async () => {
+		const res = await workerHandler.fetch(
+			new Request("https://example.com/", { method: "DELETE" })
+		);
+		const text = await res.text();
+		assert.ok(!text.includes("dep-diff-mcp"), `descriptor leaked to DELETE: ${text.slice(0, 120)}`);
 	});
 
 	it("unknown path returns 404", async () => {

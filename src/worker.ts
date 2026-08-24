@@ -122,32 +122,43 @@ export default {
 	async fetch(request: Request): Promise<Response> {
 		const url = new URL(request.url);
 
-		if (url.pathname === "/" || url.pathname === "/health") {
-			return new Response(
-				JSON.stringify({
-					name: "dep-diff-mcp",
-					description: "Translates a lockfile diff into a human-readable upgrade plan for npm and PyPI.",
-					transport: "streamable-http",
-					endpoint: "/mcp",
-					serverCard: "/.well-known/mcp/server-card.json",
-					config: {
-						githubToken: "optional; pass via Smithery config or ?githubToken= query param",
+		// Clients routinely address the base URL instead of /mcp. Serving the transport
+		// there too avoids silently answering them with the descriptor. Only a plain
+		// GET/HEAD on / is treated as discovery; POST, DELETE and SSE negotiation are
+		// all real transport traffic.
+		const wantsEventStream = (request.headers.get("accept") ?? "").includes("text/event-stream");
+		const isDiscoveryProbe =
+			(request.method === "GET" || request.method === "HEAD") && !wantsEventStream;
+		const isTransportRequest =
+			url.pathname === "/mcp" || (url.pathname === "/" && !isDiscoveryProbe);
+
+		if (!isTransportRequest) {
+			if (url.pathname === "/" || url.pathname === "/health") {
+				return new Response(
+					JSON.stringify({
+						name: "dep-diff-mcp",
+						description:
+							"Translates a lockfile diff into a human-readable upgrade plan for npm and PyPI.",
+						transport: "streamable-http",
+						endpoint: "/mcp",
+						serverCard: "/.well-known/mcp/server-card.json",
+						config: {
+							githubToken: "optional; pass via Smithery config or ?githubToken= query param",
+						},
+					}),
+					{ headers: { "Content-Type": "application/json" } }
+				);
+			}
+
+			if (url.pathname === "/.well-known/mcp/server-card.json") {
+				return new Response(JSON.stringify(SERVER_CARD, null, 2), {
+					headers: {
+						"Content-Type": "application/json",
+						"Cache-Control": "public, max-age=300",
 					},
-				}),
-				{ headers: { "Content-Type": "application/json" } }
-			);
-		}
+				});
+			}
 
-		if (url.pathname === "/.well-known/mcp/server-card.json") {
-			return new Response(JSON.stringify(SERVER_CARD, null, 2), {
-				headers: {
-					"Content-Type": "application/json",
-					"Cache-Control": "public, max-age=300",
-				},
-			});
-		}
-
-		if (url.pathname !== "/mcp") {
 			return new Response("Not Found", { status: 404 });
 		}
 
