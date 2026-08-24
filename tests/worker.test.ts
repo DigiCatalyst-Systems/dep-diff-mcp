@@ -116,14 +116,22 @@ describe("worker fetch handler", () => {
 		assert.equal(result?.serverInfo?.name, "dep-diff");
 	});
 
-	// The transport holds SSE streams open, so assert on headers and release the body
-	// rather than reading it to completion.
-	it("GET / negotiating SSE is handed to the transport, not the descriptor", async () => {
+	// A fresh transport is built per request, so there is no session to stream
+	// notifications from. Refuse the stream instead of holding one open forever.
+	it("GET / negotiating SSE is refused with 405", async () => {
 		const res = await workerHandler.fetch(
 			new Request("https://example.com/", { headers: { Accept: "text/event-stream" } })
 		);
-		assert.match(res.headers.get("content-type") ?? "", /text\/event-stream/);
-		await res.body?.cancel();
+		assert.equal(res.status, 405);
+		assert.match(res.headers.get("allow") ?? "", /POST/);
+	});
+
+	it("GET /mcp negotiating SSE is refused with 405", async () => {
+		const res = await workerHandler.fetch(
+			new Request("https://example.com/mcp", { headers: { Accept: "text/event-stream" } })
+		);
+		assert.equal(res.status, 405);
+		assert.match(res.headers.get("allow") ?? "", /POST/);
 	});
 
 	it("DELETE / is not answered with the descriptor", async () => {

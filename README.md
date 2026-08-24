@@ -54,6 +54,29 @@ Add to your MCP client config:
 
 Restart your MCP client. Ask something like "what's risky in this Dependabot PR?" and the tools are invoked automatically.
 
+### Hosted remote (no install)
+
+A hosted instance runs at `https://dep-diff.digicatalyst.ca/mcp` over streamable HTTP, so you can skip the npm package entirely:
+
+```bash
+claude mcp add -s user -t http dep-diff https://dep-diff.digicatalyst.ca/mcp
+```
+
+Or in a client config:
+
+```json
+{
+  "mcpServers": {
+    "dep-diff": {
+      "type": "http",
+      "url": "https://dep-diff.digicatalyst.ca/mcp"
+    }
+  }
+}
+```
+
+Pass a GitHub token with `?githubToken=ghp_xxx` on the URL if you want higher rate limits. The hosted instance is stateless and keeps no logs of your queries — see [PRIVACY.md](PRIVACY.md). Run the npm package locally instead if you would rather your token never leave your machine.
+
 ## GitHub token (optional but recommended)
 
 The server hits the GitHub API to read release notes. Without a token you get 60 requests per hour (GitHub's anonymous limit) — enough for occasional single-package queries, not enough for bulk lockfile analysis.
