@@ -13,6 +13,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Lockfile-diff parser tool.
 - Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
+## [0.2.1] - 2026-08-24
+
+### Added
+
+- Hosted remote endpoint at `https://dep-diff.digicatalyst.ca/mcp`, published in the MCP registry as a `streamable-http` remote. The Worker was previously reachable only on an unadvertised `workers.dev` hostname, so no client had any way to discover it.
+
+### Fixed
+
+- `GET` with `Accept: text/event-stream` now returns `405` instead of holding a stream open. The Worker builds a fresh server and transport per request, so no session survives to push notifications down that stream — it could never deliver anything, and the connection stayed open regardless.
+
 ## [0.2.0] - 2026-08-24
 
 ### Fixed

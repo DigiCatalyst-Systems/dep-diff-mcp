@@ -25,7 +25,7 @@ export function resolveTokenFromRequest(request: Request): string | undefined {
 const SERVER_CARD = {
 	serverInfo: {
 		name: "dep-diff",
-		version: "0.2.0",
+		version: "0.2.1",
 	},
 	authentication: {
 		required: false,
@@ -131,6 +131,16 @@ export default {
 			(request.method === "GET" || request.method === "HEAD") && !wantsEventStream;
 		const isTransportRequest =
 			url.pathname === "/mcp" || (url.pathname === "/" && !isDiscoveryProbe);
+
+		// A fresh server and transport are built per request, so no session survives to
+		// push notifications down an SSE stream. Refuse it rather than holding a stream
+		// open forever on a connection that can never deliver anything.
+		if (isTransportRequest && wantsEventStream && (request.method === "GET" || request.method === "HEAD")) {
+			return new Response("Method Not Allowed", {
+				status: 405,
+				headers: { Allow: "POST, DELETE" },
+			});
+		}
 
 		if (!isTransportRequest) {
 			if (url.pathname === "/" || url.pathname === "/health") {

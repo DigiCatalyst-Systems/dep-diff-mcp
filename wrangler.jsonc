@@ -4,6 +4,7 @@
 	"main": "src/worker.ts",
 	"compatibility_date": "2026-04-01",
 	"compatibility_flags": ["nodejs_compat"],
+	"routes": [{ "pattern": "dep-diff.digicatalyst.ca", "custom_domain": true }],
 	"observability": {
 		"enabled": true
 	}
