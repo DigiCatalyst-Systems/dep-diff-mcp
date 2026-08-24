@@ -25,7 +25,7 @@ export function resolveTokenFromRequest(request: Request): string | undefined {
 const SERVER_CARD = {
 	serverInfo: {
 		name: "dep-diff",
-		version: "0.1.9",
+		version: "0.2.0",
 	},
 	authentication: {
 		required: false,
