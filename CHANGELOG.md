@@ -13,6 +13,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Lockfile-diff parser tool.
 - Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
+## [0.2.0] - 2026-08-24
+
+### Fixed
+
+- The Worker now serves the MCP transport at `/`, not just `/mcp`. Clients routinely POST JSON-RPC to the base URL; the root handler previously answered every method with the static discovery descriptor and HTTP 200, so those requests failed silently on the client and surfaced no server-side error. Only a plain `GET`/`HEAD` on `/` returns the descriptor now — `POST`, `DELETE`, and SSE negotiation are all routed to the transport. `/health`, `/.well-known/mcp/server-card.json`, `/mcp`, and 404 behaviour are unchanged.
+
+### Changed
+
+- Version bumped to 0.2.0 across `package.json`, `server.json`, and both server definitions. 0.1.10 was published to npm and the MCP registry and then unpublished; the registry entry was left pointing at a version that no longer existed, so that entry has been marked deleted and the line resumes at 0.2.0.
+
 ## [0.1.9] - 2026-04-23
 
 ### Removed
