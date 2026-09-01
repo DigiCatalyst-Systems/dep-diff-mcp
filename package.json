@@ -49,19 +49,19 @@
 		"node": ">=20.0.0"
 	},
 	"dependencies": {
-		"@modelcontextprotocol/sdk": "^1.29.0",
+		"@modelcontextprotocol/sdk": "^1.30.0",
 		"lru-cache": "^11.3.5",
 		"p-limit": "^7.3.0",
 		"semver": "^7.7.4",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
-		"@cloudflare/workers-types": "^4.20260423.1",
+		"@cloudflare/workers-types": "^5.20260901.1",
 		"@types/node": "^25.6.0",
 		"@types/semver": "^7.7.1",
 		"esbuild": "^0.28.0",
-		"tsx": "^4.21.0",
+		"tsx": "^4.23.13",
 		"typescript": "^6.0.3",
-		"wrangler": "^4.84.1"
+		"wrangler": "^4.127.1"
 	}
 }
