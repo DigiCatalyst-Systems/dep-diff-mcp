@@ -13,6 +13,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Lockfile-diff parser tool.
 - Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
+## [0.2.2] - 2026-09-01
+
+### Fixed
+
+- Prerelease tags are no longer reported as breaking changes for stable-to-stable upgrades. `semver.coerce()` drops the prerelease component, so `5.0.0-alpha.3` compared equal to `5.0.0` and fell inside a `4.18.2 -> 5.0.0` range — every alpha and beta between the two stable versions leaked into the analysis. The range filter now coerces with `includePrerelease` and excludes prerelease tags when both endpoints are stable. Prereleases are still included when either endpoint is itself one, so `5.0.0-alpha.1 -> 5.0.0` is unaffected. For `express` `4.18.2 -> 5.0.0` this cuts the releases considered from 23 to 12.
+- Release-note lines about CI, tests, docs, and tooling are no longer reported as breaking changes. Entries such as `Replace Appveyor windows testing with GHA` and `remove minor version pinning from ci` matched the extractor's verbs (`remove`, `replace`, `deprecated`) without being API changes. Bullets that carry no substance after their keyword — `- remove:`, a bare `- Deprecated` — are dropped as well. Combined with the prerelease fix, `express` `4.18.2 -> 5.0.0` now reports 3 breaking changes instead of 11, all of them genuine.
+- An empty `## Breaking Changes` heading no longer emits an entry with no text (`"v0.32.0 (section): "`, seen on `axios` `0.27.2 -> 1.0.0`). The section regex ran past the following heading whenever a blank line preceded it, capturing the next section instead of stopping. The lookahead is tightened and empty excerpts are skipped.
+
+### Security
+
+- Cleared all 13 npm audit advisories (8 high, 3 moderate, 2 low). Seven were in the production tree, every one transitive through `@modelcontextprotocol/sdk`: `hono`, `fast-uri`, `ip-address`, `qs`, `express-rate-limit`, `@hono/node-server`, `body-parser`. None were reachable from this server, which imports only the stdio and `webStandardStreamableHttp` transports, but they installed on every consumer's machine. Most cleared by refreshing stale lockfile resolutions — the caret ranges already permitted patched versions. `@modelcontextprotocol/sdk` 1.29.0 -> 1.30.0 and `tsx` 4.21 -> 4.23.13 needed explicit bumps; `@cloudflare/workers-types` ^4 -> ^5 and `wrangler` 4.84 -> 4.127 moved together to resolve a dev-only peer conflict that was blocking `npm audit fix`. `npm audit` now reports 0 vulnerabilities including the dev tree.
+
+### Added
+
+- README now opens with a "What it looks like" section showing real, unedited tool output — a `lodash` security patch and a five-package Dependabot batch. Every code block in the README was previously configuration, so nothing showed what the tool actually produced without installing it first.
+- CI gates on `npm audit --omit=dev --audit-level=high`, with a second informational pass over the full tree that does not block. Scoping the gate to production dependencies keeps dev-tooling advisories from failing unrelated PRs while still catching anything that reaches a consumer.
+- Dependabot configuration for npm and github-actions, weekly, with dev dependencies grouped into a single PR so runtime bumps stay individually reviewable.
+
 ## [0.2.1] - 2026-08-24
 
 ### Added
@@ -151,7 +169,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.9...v0.2.0
 [0.1.9]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.6...v0.1.7
