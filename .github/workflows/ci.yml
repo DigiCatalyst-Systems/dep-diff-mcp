@@ -19,6 +19,16 @@ jobs:
 
       - run: npm ci
 
+      # This project tells people what is risky in a dependency upgrade, so its
+      # own shipped dependency tree is a hard gate. Dev-only advisories are
+      # reported but do not block, since they never reach a consumer.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Audit all dependencies (informational)
+        run: npm audit
+        continue-on-error: true
+
       - run: npm run build
 
       - run: npm test
