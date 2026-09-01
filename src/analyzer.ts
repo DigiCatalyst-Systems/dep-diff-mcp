@@ -130,6 +130,30 @@ async function fetchReleaseByTag(
 	return null;
 }
 
+const MAX_UNVERSIONED_RELEASES = 10;
+
+export function filterReleasesInRange(releases: any[], from: string, to: string): any[] {
+	// coerce() drops the prerelease component, so "5.0.0-alpha.3" would otherwise
+	// compare equal to "5.0.0" and fall inside a 4.18.2 -> 5.0.0 range.
+	const parsedFrom = semver.coerce(from, { includePrerelease: true });
+	const parsedTo = semver.coerce(to, { includePrerelease: true });
+
+	const base = [...releases];
+	if (!parsedFrom || !parsedTo) return base.slice(0, MAX_UNVERSIONED_RELEASES);
+
+	// Moving between two stable versions: the alphas and betas in between were
+	// never released to this user, so they are not part of the upgrade.
+	const endpointsAreStable =
+		parsedFrom.prerelease.length === 0 && parsedTo.prerelease.length === 0;
+
+	return base.filter((r) => {
+		const parsed = semver.coerce(r.tag_name, { includePrerelease: true });
+		if (!parsed) return false;
+		if (endpointsAreStable && parsed.prerelease.length > 0) return false;
+		return semver.gt(parsed, parsedFrom) && semver.lte(parsed, parsedTo);
+	});
+}
+
 async function fetchReleasesBetween(
 	owner: string, repo: string, from: string, to: string, token?: string
 ) {
@@ -149,20 +173,8 @@ async function fetchReleasesBetween(
 		return out;
 	});
 
-	const cleanFrom = semver.coerce(from)?.version;
+	const filtered = filterReleasesInRange(allReleases, from, to);
 	const cleanTo = semver.coerce(to)?.version;
-
-	const base = [...allReleases];
-	let filtered: any[];
-	if (!cleanFrom || !cleanTo) {
-		filtered = base.slice(0, 10);
-	} else {
-		filtered = base.filter((r) => {
-			const v = semver.coerce(r.tag_name)?.version;
-			if (!v) return false;
-			return semver.gt(v, cleanFrom) && semver.lte(v, cleanTo);
-		});
-	}
 
 	const hasTo = filtered.some((r) => {
 		const v = semver.coerce(r.tag_name)?.version;
@@ -210,6 +222,31 @@ const STRONG_BULLET = new RegExp(
 	"im"
 );
 
+// Release-note bullets that describe CI, tests, docs, or tooling. These match the
+// STRONG_BULLET verbs ("remove", "replace", "deprecated") without being API changes.
+const CHORE_BULLET = new RegExp(
+	"^(?:chore|ci|test|docs?|build|style|refactor|perf)(?:\\([^)]*\\))?:|" +
+	"\\bci\\b|appveyor|\\bgha\\b|github\\s+actions|workflow|" +
+	"\\blint(?:ing|er)?\\b|jsdoc|\\btypos?\\b|\\btests?\\b|testing|coverage|" +
+	"readme|changelog|contributing|dependabot|codecov|benchmark",
+	"i"
+);
+
+// The verb that made a line match STRONG_BULLET, so it can be stripped to see
+// whether anything of substance is left ("remove:" -> nothing).
+const BULLET_KEYWORD = new RegExp(
+	"^(?:breaking|removed?|drop(?:ped|s)?\\s+support|no\\s+longer|now\\s+requires?|" +
+	"renamed?|deprecated|replaced?|migrated?|incompatible|" +
+	"changed?\\s+(?:behavior|default|signature)|minimum\\s+(?:node|python|version))",
+	"i"
+);
+
+function isSubstantiveBullet(text: string): boolean {
+	if (CHORE_BULLET.test(text)) return false;
+	const remainder = text.replace(BULLET_KEYWORD, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+	return remainder.length > 0;
+}
+
 const MAX_BULLETS_PER_RELEASE = 10;
 const MAX_BULLET_LEN = 300;
 const MAX_SECTION_LEN = 800;
@@ -226,15 +263,18 @@ export function extractBreakingChanges(releases: any[]): string[] {
 		const tag = rel.tag_name ?? rel.name ?? "unknown";
 
 		if (BREAKING_HEADER.test(body) || /breaking/i.test(rel.name ?? "")) {
-			const m = body.match(/(?:breaking changes?|breaking)[^\n]*\n([\s\S]+?)(?=\n#{1,4}|$)/i);
-			const excerpt = m?.[1]?.trim().slice(0, MAX_SECTION_LEN) ?? "(see full release notes)";
-			breaking.push(`${tag} (section): ${excerpt}`);
+			const m = body.match(/(?:breaking changes?|breaking)[^\n]*\n([\s\S]+?)(?=\n?\s*#{1,4}\s|$)/i);
+			const excerpt = m?.[1]?.trim().slice(0, MAX_SECTION_LEN);
+			// A heading with nothing under it is noise, not a breaking change.
+			if (excerpt) breaking.push(`${tag} (section): ${excerpt}`);
 		}
 
 		const bullets: string[] = [];
 		for (const line of body.split(/\r?\n/)) {
 			if (STRONG_BULLET.test(line)) {
-				bullets.push(trimLine(line, MAX_BULLET_LEN));
+				const text = trimLine(line, MAX_BULLET_LEN);
+				if (!isSubstantiveBullet(text)) continue;
+				bullets.push(text);
 				if (bullets.length >= MAX_BULLETS_PER_RELEASE) break;
 			}
 		}
