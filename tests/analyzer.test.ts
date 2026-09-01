@@ -6,6 +6,7 @@ import {
 	extractBreakingChanges,
 	extractMigrationLinks,
 	extractReleaseExcerpts,
+	filterReleasesInRange,
 } from "../src/analyzer.ts";
 
 describe("classifyBump", () => {
@@ -279,5 +280,122 @@ describe("extractReleaseExcerpts", () => {
 		const releases = [{ tag_name: "v1.0.0", body: "short", published_at: "2025-01-01T00:00:00Z" }];
 		const out = extractReleaseExcerpts(releases);
 		assert.equal(out[0]?.excerpt, "short");
+	});
+});
+
+describe("filterReleasesInRange", () => {
+	const rel = (tag: string) => ({ tag_name: tag, body: "" });
+
+	it("keeps stable releases inside the range", () => {
+		const releases = [rel("v4.18.2"), rel("v4.18.3"), rel("v4.20.0"), rel("v5.0.0"), rel("v5.1.0")];
+		const out = filterReleasesInRange(releases, "4.18.2", "5.0.0").map((r) => r.tag_name);
+		assert.deepEqual(out, ["v4.18.3", "v4.20.0", "v5.0.0"]);
+	});
+
+	it("excludes prerelease tags when both endpoints are stable", () => {
+		const releases = [
+			rel("v4.20.0"),
+			rel("5.0.0-alpha.1"),
+			rel("5.0.0-alpha.7"),
+			rel("5.0.0-beta.2"),
+			rel("v5.0.0"),
+		];
+		const out = filterReleasesInRange(releases, "4.18.2", "5.0.0").map((r) => r.tag_name);
+		assert.deepEqual(out, ["v4.20.0", "v5.0.0"]);
+	});
+
+	it("keeps prereleases when the target version is itself a prerelease", () => {
+		const releases = [rel("v4.20.0"), rel("5.0.0-alpha.1"), rel("5.0.0-beta.2"), rel("v5.0.0")];
+		const out = filterReleasesInRange(releases, "4.18.2", "5.0.0-beta.2").map((r) => r.tag_name);
+		assert.deepEqual(out, ["v4.20.0", "5.0.0-alpha.1", "5.0.0-beta.2"]);
+	});
+
+	it("keeps prereleases when the starting version is a prerelease", () => {
+		const releases = [rel("5.0.0-alpha.1"), rel("5.0.0-beta.2"), rel("v5.0.0")];
+		const out = filterReleasesInRange(releases, "5.0.0-alpha.1", "5.0.0").map((r) => r.tag_name);
+		assert.deepEqual(out, ["5.0.0-beta.2", "v5.0.0"]);
+	});
+
+	it("handles repo-prefixed tags", () => {
+		const releases = [rel("express-4.19.0"), rel("express-5.0.0-alpha.1")];
+		const out = filterReleasesInRange(releases, "4.18.2", "5.0.0").map((r) => r.tag_name);
+		assert.deepEqual(out, ["express-4.19.0"]);
+	});
+
+	it("drops tags that cannot be parsed as versions", () => {
+		const releases = [rel("nightly"), rel("v4.19.0")];
+		const out = filterReleasesInRange(releases, "4.18.2", "5.0.0").map((r) => r.tag_name);
+		assert.deepEqual(out, ["v4.19.0"]);
+	});
+
+	it("falls back to the 10 most recent releases when versions are unparseable", () => {
+		const releases = Array.from({ length: 20 }, (_, i) => rel(`v1.${i}.0`));
+		const out = filterReleasesInRange(releases, "garbage", "also-garbage");
+		assert.equal(out.length, 10);
+	});
+});
+
+describe("extractBreakingChanges — noise filtering", () => {
+	it("drops bullets with no substance after the keyword", () => {
+		const releases = [{ tag_name: "5.0.0-alpha.3", body: "- remove:\n- removed:\n- Deprecated" }];
+		assert.deepEqual(extractBreakingChanges(releases), []);
+	});
+
+	it("drops CI, build, and test chore bullets", () => {
+		const releases = [
+			{
+				tag_name: "v5.0.0",
+				body: [
+					"- Replace Appveyor windows testing with GHA by @jonchurch in https://github.com/expressjs/express/pull/5599",
+					"- remove minor version pinning from ci by @jonchurch in https://github.com/expressjs/express/pull/5722",
+					"- remove duplicate location test for data uri by @wesleytodd in https://github.com/expressjs/express/pull/5562",
+				].join("\n"),
+			},
+		];
+		assert.deepEqual(extractBreakingChanges(releases), []);
+	});
+
+	it("drops docs and changelog chore bullets", () => {
+		const releases = [
+			{
+				tag_name: "v5.0.0",
+				body: [
+					'- replace "replaces" with "replacer" in jsdoc by @apeltop in https://github.com/expressjs/express/pull/4843',
+					"- docs: removed outdated example from README",
+					"- chore: deprecated lint rule removed",
+				].join("\n"),
+			},
+		];
+		assert.deepEqual(extractBreakingChanges(releases), []);
+	});
+
+	it("keeps genuine API breaking changes alongside chore noise", () => {
+		const releases = [
+			{
+				tag_name: "v5.0.0",
+				body: [
+					"- Deprecated API methods removed: Removed old, deprecated API method signatures from Express v3/v4.",
+					"- Replace Appveyor windows testing with GHA by @jonchurch in https://github.com/expressjs/express/pull/5599",
+					"- Remove `debug` dependency",
+				].join("\n"),
+			},
+		];
+		const out = extractBreakingChanges(releases);
+		assert.equal(out.length, 1);
+		assert.match(out[0]!, /Deprecated API methods removed/);
+		assert.match(out[0]!, /Remove `debug` dependency/);
+		assert.doesNotMatch(out[0]!, /Appveyor/);
+	});
+
+	it("omits a breaking-changes section whose body is empty", () => {
+		const releases = [{ tag_name: "v0.32.0", body: "## Breaking Changes\n\n## Features\n- Added thing" }];
+		assert.deepEqual(extractBreakingChanges(releases), []);
+	});
+
+	it("still emits a section when the heading has real content", () => {
+		const releases = [{ tag_name: "v2.0.0", body: "## Breaking Changes\nDropped IE11 support.\n" }];
+		const out = extractBreakingChanges(releases);
+		assert.equal(out.length, 1);
+		assert.match(out[0]!, /Dropped IE11 support/);
 	});
 });

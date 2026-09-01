@@ -4,6 +4,76 @@ MCP server that translates a lockfile diff into a human-readable upgrade plan.
 
 Point your AI assistant (Cursor, Claude Desktop, Claude Code) at a Dependabot PR, `npm outdated` output, or any pair of package versions, and get back a ranked upgrade plan: semver class, breaking changes pulled from GitHub release notes, CVEs fixed in the range, migration guide links, and a clear recommendation per package.
 
+## What it looks like
+
+Ask your assistant, in plain language:
+
+> Is it safe to bump lodash from 4.17.20 to 4.17.21?
+
+It calls `analyze_package_change` and gets back:
+
+```json
+{
+  "package": "lodash",
+  "ecosystem": "npm",
+  "fromVersion": "4.17.20",
+  "toVersion": "4.17.21",
+  "semverClass": "patch",
+  "repoUrl": "https://github.com/lodash/lodash",
+  "releaseCount": 0,
+  "breakingChanges": [],
+  "securityFixes": [
+    {
+      "id": "GHSA-29mw-wpgm-hmr9",
+      "summary": "Regular Expression Denial of Service (ReDoS) in lodash",
+      "severity": "MODERATE"
+    },
+    {
+      "id": "GHSA-35jh-r3h4-6jhm",
+      "summary": "Command Injection in lodash",
+      "severity": "HIGH"
+    }
+  ],
+  "migrationLinks": [],
+  "recommendation": "RECOMMENDED: 2 security fix(es) (incl. high/critical).",
+  "recommendationLevel": "security"
+}
+```
+
+A patch bump you would normally merge without looking. It closes a **HIGH-severity command injection**. That is the case this server exists for.
+
+### A whole Dependabot batch
+
+> Here's my Dependabot PR — what's actually risky in it?
+
+`analyze_packages_bulk` takes up to 50 changes at once and ranks them
+`security` > `caution` > `review` > `likely-safe` > `safe`:
+
+```json
+{
+  "totalPackages": 5,
+  "bySemverClass": { "major": 1, "minor": 3, "patch": 1 },
+  "securityFixesTotal": 7,
+  "packagesWithBreakingChanges": 1,
+  "packages": [ /* one entry per package, same shape as above */ ]
+}
+```
+
+Condensing the `recommendation` field of each entry, that batch comes back in this order:
+
+| Package | Change | Class | Verdict |
+|---|---|---|---|
+| `lodash` | 4.17.20 → 4.17.21 | patch | **RECOMMENDED** — 2 security fixes (incl. high/critical) |
+| `axios` | 1.6.0 → 1.7.9 | minor | **RECOMMENDED** — 1 security fix (incl. high/critical) |
+| `express` | 4.18.2 → 5.0.0 | major | **RECOMMENDED** — 2 security fixes; 3 breaking changes, [migration guide](https://expressjs.com/en/guide/migrating-5.html) |
+| `requests` (PyPI) | 2.31.0 → 2.32.0 | minor | **RECOMMENDED** — 2 security fixes |
+| `typescript` | 5.3.3 → 5.4.5 | minor | LIKELY SAFE — minor version, additive changes per semver |
+
+Note the ordering: the `patch` bump outranks the `major` one. Semver tells you how much
+changed; it does not tell you what is urgent.
+
+Every response above is real output from the hosted instance, trimmed only where marked.
+
 ## Install
 
 ### Claude Code
