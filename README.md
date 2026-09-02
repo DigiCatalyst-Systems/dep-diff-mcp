@@ -145,7 +145,9 @@ Or in a client config:
 }
 ```
 
-Pass a GitHub token with `?githubToken=ghp_xxx` on the URL if you want higher rate limits. The hosted instance is stateless and keeps no logs of your queries — see [PRIVACY.md](PRIVACY.md). Run the npm package locally instead if you would rather your token never leave your machine.
+The hosted instance authenticates to GitHub with its own token, so release-note lookups work at full rate limits without you configuring anything. Pass `?githubToken=ghp_xxx` on the URL only if you would rather requests counted against your own GitHub quota. It is stateless and keeps no logs of your queries — see [PRIVACY.md](PRIVACY.md). Run the npm package locally instead if you would rather your token never leave your machine.
+
+The same instance is also listed on [Smithery](https://smithery.ai/servers/digicatalyst-systems/dep-diff-mcp), which proxies to it through their gateway.
 
 ## GitHub token (optional but recommended)
 
