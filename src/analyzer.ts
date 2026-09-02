@@ -154,24 +154,52 @@ export function filterReleasesInRange(releases: any[], from: string, to: string)
 	});
 }
 
+export class ReleaseFetchError extends Error {
+	constructor(public readonly page: number, public readonly status: number) {
+		super(`GitHub releases page ${page} returned ${status}`);
+		this.name = "ReleaseFetchError";
+	}
+}
+
+const MAX_RELEASE_PAGES = 5;
+const RELEASES_PER_PAGE = 100;
+
+interface PageResponse {
+	ok: boolean;
+	status: number;
+	json: () => Promise<unknown>;
+}
+
+export async function collectReleasePages(
+	fetchPage: (page: number) => Promise<PageResponse>,
+	maxPages: number = MAX_RELEASE_PAGES
+): Promise<any[]> {
+	const out: any[] = [];
+	for (let page = 1; page <= maxPages; page++) {
+		const res = await fetchPage(page);
+		// Throwing rather than breaking is load-bearing: cached() only stores a
+		// resolved value, so a rate-limited page can no longer be pinned as "this
+		// repo has no releases" for the rest of the TTL.
+		if (!res.ok) throw new ReleaseFetchError(page, res.status);
+		const batch = (await res.json()) as any[];
+		if (!Array.isArray(batch) || batch.length === 0) break;
+		out.push(...batch);
+		if (batch.length < RELEASES_PER_PAGE) break;
+	}
+	return out;
+}
+
 async function fetchReleasesBetween(
 	owner: string, repo: string, from: string, to: string, token?: string
 ) {
-	const allReleases = await cached(`releases:${owner}/${repo}`, async () => {
-		const out: any[] = [];
-		for (let page = 1; page <= 5; page++) {
-			const res = await fetch(
+	const allReleases = await cached(`releases:${owner}/${repo}`, () =>
+		collectReleasePages((page) =>
+			fetch(
 				`https://api.github.com/repos/${owner}/${repo}/releases?per_page=100&page=${page}`,
 				{ headers: githubHeaders(token) }
-			);
-			if (!res.ok) break;
-			const batch = (await res.json()) as any[];
-			if (!Array.isArray(batch) || batch.length === 0) break;
-			out.push(...batch);
-			if (batch.length < 100) break;
-		}
-		return out;
-	});
+			)
+		)
+	);
 
 	const filtered = filterReleasesInRange(allReleases, from, to);
 	const cleanTo = semver.coerce(to)?.version;

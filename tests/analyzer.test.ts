@@ -7,6 +7,8 @@ import {
 	extractMigrationLinks,
 	extractReleaseExcerpts,
 	filterReleasesInRange,
+	collectReleasePages,
+	ReleaseFetchError,
 } from "../src/analyzer.ts";
 
 describe("classifyBump", () => {
@@ -397,5 +399,60 @@ describe("extractBreakingChanges — noise filtering", () => {
 		const out = extractBreakingChanges(releases);
 		assert.equal(out.length, 1);
 		assert.match(out[0]!, /Dropped IE11 support/);
+	});
+});
+
+describe("collectReleasePages", () => {
+	const page = (count: number, ok = true, status = 200) => ({
+		ok,
+		status,
+		json: async () => Array.from({ length: count }, (_, i) => ({ tag_name: `v0.0.${i}` })),
+	});
+
+	it("returns the releases from a single short page", async () => {
+		const out = await collectReleasePages(async () => page(3));
+		assert.equal(out.length, 3);
+	});
+
+	it("follows pagination until a short page", async () => {
+		const pages = [page(100), page(100), page(7)];
+		const out = await collectReleasePages(async (n) => pages[n - 1]!);
+		assert.equal(out.length, 207);
+	});
+
+	it("stops after maxPages", async () => {
+		let calls = 0;
+		const out = await collectReleasePages(async () => { calls++; return page(100); }, 3);
+		assert.equal(calls, 3);
+		assert.equal(out.length, 300);
+	});
+
+	it("returns an empty array when the repo genuinely has no releases", async () => {
+		const out = await collectReleasePages(async () => page(0));
+		assert.deepEqual(out, []);
+	});
+
+	it("treats a non-array body as the end of the list", async () => {
+		const out = await collectReleasePages(async () => ({
+			ok: true, status: 200, json: async () => ({ message: "not an array" }),
+		}));
+		assert.deepEqual(out, []);
+	});
+
+	// The bug: a rate-limited first page returned [], which the caller then cached
+	// for an hour as if the repo had no releases.
+	it("throws when the first page fails instead of returning empty", async () => {
+		await assert.rejects(
+			() => collectReleasePages(async () => page(0, false, 403)),
+			(e: unknown) => e instanceof ReleaseFetchError && (e as ReleaseFetchError).status === 403
+		);
+	});
+
+	it("throws rather than returning partial results when a later page fails", async () => {
+		const pages = [page(100), page(0, false, 403)];
+		await assert.rejects(
+			() => collectReleasePages(async (n) => pages[n - 1]!),
+			(e: unknown) => e instanceof ReleaseFetchError && (e as ReleaseFetchError).page === 2
+		);
 	});
 });
