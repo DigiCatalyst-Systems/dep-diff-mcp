@@ -43,7 +43,7 @@ export function resolveToken(request: Request, env?: Env): string | undefined {
 const SERVER_CARD = {
 	serverInfo: {
 		name: "dep-diff",
-		version: "0.2.2",
+		version: "0.2.3",
 	},
 	authentication: {
 		required: false,

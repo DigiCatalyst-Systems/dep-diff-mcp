@@ -13,6 +13,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Lockfile-diff parser tool.
 - Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
+## [0.2.3] - 2026-09-02
+
+### Fixed
+
+- A failed GitHub release fetch is no longer cached as "this package has no releases". The paged walk did `if (!res.ok) break`, so a rate-limited page returned whatever had been collected so far — usually nothing — and the LRU stored that empty array for its full one-hour TTL. Observed on the hosted Worker: `express` `4.18.2 -> 5.0.0` returned 1 release and 1 breaking change where identical code returned 12 and 3 locally, stable across repeated calls. The walk is now `collectReleasePages()` and throws `ReleaseFetchError` on a failed page; since the cache only stores resolved values, nothing is persisted and the next request retries. A later-page failure throws as well, rather than returning a partial list as if it were complete.
+
+### Added
+
+- The Worker falls back to a `GITHUB_TOKEN` secret when a request carries no token of its own. The fetch handler was declared `async fetch(request: Request)` and never received `env`, so `wrangler secret put GITHUB_TOKEN` would previously have had no effect — the secret sat in an `env` that no code path read. A caller passing `?githubToken=` still takes precedence and spends their own budget. Without either token the Worker runs on GitHub's 60 requests/hour anonymous limit, keyed to a Cloudflare egress IP shared with other tenants, and a single package analysis costs roughly 2-7 GitHub calls.
+
+### Known limitations
+
+- The response cache is declared at module scope and is therefore per-isolate. Cloudflare recycles Workers isolates frequently, so the one-hour TTL rarely applies on the hosted instance and most requests start cold. Cross-isolate caching (Workers KV or the Cache API) is the structural fix and is not in this release.
+- GitHub fetch failures are still swallowed upstream by `.catch(() => [])`, so a degraded response reports zero breaking changes without signalling that release data was unavailable. A token makes this rare, not visible.
+
 ## [0.2.2] - 2026-09-01
 
 ### Fixed
@@ -169,7 +184,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.1.9...v0.2.0
