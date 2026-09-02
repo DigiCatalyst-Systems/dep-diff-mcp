@@ -18,7 +18,7 @@ const ecosystemSchema = z.enum(["npm", "pypi"]).describe("Package ecosystem");
 export function createMcpServer(githubToken?: string): McpServer {
 	const server = new McpServer({
 		name: "dep-diff",
-		version: "0.2.2",
+		version: "0.2.3",
 	});
 
 	server.registerTool(
