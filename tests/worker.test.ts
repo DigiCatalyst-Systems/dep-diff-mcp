@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import workerHandler, { resolveTokenFromRequest } from "../src/worker.ts";
+import workerHandler, { resolveTokenFromRequest, resolveToken } from "../src/worker.ts";
 
 function req(url: string): Request {
 	return new Request(url);
@@ -172,5 +172,44 @@ describe("worker fetch handler", () => {
 
 		assert.ok(card.prompts?.some((p) => p.name === "review_dependabot_pr"));
 		assert.ok(card.prompts?.some((p) => p.name === "explain_package_upgrade"));
+	});
+});
+
+describe("resolveToken (request token, then operator secret)", () => {
+	it("uses the caller's token when both are present, so they spend their own budget", () => {
+		assert.equal(
+			resolveToken(req("https://example.com/mcp?githubToken=ghp_caller"), { GITHUB_TOKEN: "ghp_operator" }),
+			"ghp_caller"
+		);
+	});
+
+	it("falls back to the operator secret when the request carries no token", () => {
+		assert.equal(
+			resolveToken(req("https://example.com/mcp"), { GITHUB_TOKEN: "ghp_operator" }),
+			"ghp_operator"
+		);
+	});
+
+	it("falls back to the operator secret behind a config blob with no token", () => {
+		const url = `https://example.com/mcp?config=${b64({ somethingElse: true })}`;
+		assert.equal(resolveToken(req(url), { GITHUB_TOKEN: "ghp_operator" }), "ghp_operator");
+	});
+
+	it("returns undefined when neither is present", () => {
+		assert.equal(resolveToken(req("https://example.com/mcp"), {}), undefined);
+	});
+
+	it("tolerates a missing env entirely", () => {
+		assert.equal(resolveToken(req("https://example.com/mcp")), undefined);
+		assert.equal(resolveToken(req("https://example.com/mcp?githubToken=ghp_abc")), "ghp_abc");
+	});
+
+	it("trims whitespace from the operator secret", () => {
+		assert.equal(resolveToken(req("https://example.com/mcp"), { GITHUB_TOKEN: "  ghp_op  " }), "ghp_op");
+	});
+
+	it("treats an empty operator secret as absent", () => {
+		assert.equal(resolveToken(req("https://example.com/mcp"), { GITHUB_TOKEN: "   " }), undefined);
+		assert.equal(resolveToken(req("https://example.com/mcp"), { GITHUB_TOKEN: "" }), undefined);
 	});
 });
