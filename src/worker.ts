@@ -22,6 +22,24 @@ export function resolveTokenFromRequest(request: Request): string | undefined {
 	return undefined;
 }
 
+export interface Env {
+	GITHUB_TOKEN?: string;
+}
+
+/**
+ * The caller's own token wins so they spend their own 5,000/hr budget; the
+ * operator secret is only a fallback. Without either, the Worker runs on
+ * GitHub's 60/hr anonymous limit keyed to a shared Cloudflare egress IP, which
+ * is exhausted almost immediately and makes packages look like they have no
+ * releases.
+ */
+export function resolveToken(request: Request, env?: Env): string | undefined {
+	const fromRequest = resolveTokenFromRequest(request);
+	if (fromRequest) return fromRequest;
+	const fromEnv = env?.GITHUB_TOKEN?.trim();
+	return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
+}
+
 const SERVER_CARD = {
 	serverInfo: {
 		name: "dep-diff",
@@ -119,7 +137,7 @@ const SERVER_CARD = {
 } as const;
 
 export default {
-	async fetch(request: Request): Promise<Response> {
+	async fetch(request: Request, env?: Env): Promise<Response> {
 		const url = new URL(request.url);
 
 		// Clients routinely address the base URL instead of /mcp. Serving the transport
@@ -173,7 +191,7 @@ export default {
 		}
 
 		try {
-			const token = resolveTokenFromRequest(request);
+			const token = resolveToken(request, env);
 			const server = createMcpServer(token);
 			const transport = new WebStandardStreamableHTTPServerTransport();
 			await server.server.connect(transport);
