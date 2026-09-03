@@ -129,9 +129,7 @@ describe("extractBreakingChanges", () => {
 			},
 		];
 		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 1);
-		assert.match(out[0]!, /v2\.0\.0 \(section\)/);
-		assert.match(out[0]!, /Dropped IE11 support/);
+		assert.deepEqual(out, ["v2.0.0: Dropped IE11 support."]);
 	});
 
 	it("captures strong bullet patterns without explicit section", () => {
@@ -141,12 +139,13 @@ describe("extractBreakingChanges", () => {
 				body: "Release notes\n\n- Removed deprecated foo API\n- No longer supports Node 14\n- Now requires Python 3.10",
 			},
 		];
-		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 1);
-		assert.match(out[0]!, /v3\.0\.0 \(bullets\)/);
-		assert.match(out[0]!, /Removed deprecated foo API/);
-		assert.match(out[0]!, /No longer supports Node 14/);
-		assert.match(out[0]!, /Now requires Python 3\.10/);
+		// One entry per change: joining them into a single string made the count
+		// wrong and forced the reader to split on a pipe.
+		assert.deepEqual(extractBreakingChanges(releases), [
+			"v3.0.0: Removed deprecated foo API",
+			"v3.0.0: No longer supports Node 14",
+			"v3.0.0: Now requires Python 3.10",
+		]);
 	});
 
 	it("captures deprecated/renamed/dropped-support bullets", () => {
@@ -157,19 +156,18 @@ describe("extractBreakingChanges", () => {
 			},
 		];
 		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 1);
-		assert.match(out[0]!, /Deprecated/);
-		assert.match(out[0]!, /Renamed/);
-		assert.match(out[0]!, /Dropped support/);
+		assert.equal(out.length, 3);
+		assert.ok(out.every((e) => e.startsWith("v4.0.0: ")), JSON.stringify(out));
+		assert.match(out.join(" "), /Deprecated old helper/);
+		assert.match(out.join(" "), /Renamed foo to bar/);
+		assert.match(out.join(" "), /Dropped support for Node 16/);
 	});
 
 	it("caps bullets per release", () => {
 		const bullets = Array.from({ length: 25 }, (_, i) => `- Removed feature ${i}`).join("\n");
 		const releases = [{ tag_name: "v1.0.0", body: bullets }];
 		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 1);
-		const bulletEntries = out[0]!.split(" | ");
-		assert.ok(bulletEntries.length <= 10, `expected <= 10 bullets, got ${bulletEntries.length}`);
+		assert.ok(out.length <= 10, `expected <= 10 entries, got ${out.length}`);
 	});
 
 	it("truncates long bullet lines", () => {
@@ -178,6 +176,7 @@ describe("extractBreakingChanges", () => {
 		const out = extractBreakingChanges(releases);
 		assert.equal(out.length, 1);
 		assert.ok(out[0]!.includes("…"), "expected ellipsis truncation");
+		assert.ok(!out[0]!.includes("(bullets)"), "parser internals must not leak");
 	});
 
 	it("returns both section and bullet entries when both present", () => {
@@ -188,9 +187,140 @@ describe("extractBreakingChanges", () => {
 			},
 		];
 		const out = extractBreakingChanges(releases);
+		assert.equal(out.length, 3);
+		assert.ok(out.includes("v2.0.0: Some top-level change."), JSON.stringify(out));
+		assert.ok(out.includes("v2.0.0: Removed foo"), JSON.stringify(out));
+		assert.ok(out.includes("v2.0.0: No longer supports bar"), JSON.stringify(out));
+	});
+
+	// zod v4.5.0 flags five real breaking changes with emoji headings, then mentions
+	// the word "breaking" 53kB later inside a docs commit line. Anchoring extraction
+	// on the bare word rather than the heading returned the docs line and discarded
+	// all five.
+	it("anchors on the heading, not a stray mention of the word", () => {
+		const body = [
+			"## What's new",
+			"- added a thing",
+			"",
+			"### ⚠️ `z.iso.datetime()` requires seconds",
+			"Datetimes without seconds are now rejected.",
+			"",
+			"### ⚠️ `__proto__` is always stripped",
+			"Declared `__proto__` keys become own properties.",
+			"",
+			"## Commits",
+			"- [`e177a0ee`](https://x) docs(v4): document coerce missing-key breaking change",
+		].join("\n");
+		const out = extractBreakingChanges([{ tag_name: "v4.5.0", body }]);
 		assert.equal(out.length, 2);
-		assert.ok(out.some((e) => e.includes("(section)")));
-		assert.ok(out.some((e) => e.includes("(bullets)")));
+		assert.match(out[0]!, /`z\.iso\.datetime\(\)` requires seconds/);
+		assert.match(out[1]!, /__proto__` is always stripped/);
+		assert.ok(
+			!out.some((e) => /docs\(v4\)/.test(e)),
+			`docs commit leaked into output: ${JSON.stringify(out)}`
+		);
+	});
+
+	it("uses the heading title as the change when it carries one", () => {
+		const body = "### 💥 Minimum Node is now 20\nSee the migration guide.";
+		const out = extractBreakingChanges([{ tag_name: "v3.0.0", body }]);
+		assert.equal(out.length, 1);
+		assert.match(out[0]!, /Minimum Node is now 20/);
+	});
+
+	it("falls back to the section body for a marker-only heading", () => {
+		const body = "## Breaking\nThe `parse` option was removed.\n\n## Other";
+		const out = extractBreakingChanges([{ tag_name: "v2.0.0", body }]);
+		assert.equal(out.length, 1);
+		assert.match(out[0]!, /The `parse` option was removed/);
+	});
+
+	it("skips a breaking heading whose content is only chores", () => {
+		const body = "## ⚠️ CI changes\n- ci: bump the workflow runner\n- chore: update dependabot config";
+		assert.deepEqual(extractBreakingChanges([{ tag_name: "v1.2.0", body }]), []);
+	});
+
+	it("stops a section at the next heading of any level", () => {
+		const body = "## Breaking\nOnly this line.\n### Details\nNot this one.";
+		const out = extractBreakingChanges([{ tag_name: "v2.0.0", body }]);
+		assert.equal(out.length, 1);
+		assert.match(out[0]!, /Only this line/);
+		assert.ok(!/Not this one/.test(out[0]!), out[0]);
+	});
+
+	it("truncates a long section rather than emitting a wall of text", () => {
+		const body = `## Breaking\n${"word ".repeat(500)}`;
+		const out = extractBreakingChanges([{ tag_name: "v2.0.0", body }]);
+		assert.equal(out.length, 1);
+		assert.ok(out[0]!.length < 900, `section not capped: ${out[0]!.length}`);
+		assert.ok(out[0]!.endsWith("…"), "expected ellipsis truncation");
+	});
+
+	// Release notes generated by GitHub end every line with an attribution that
+	// carries no information about what broke.
+	it("strips trailing author and pull request attribution", () => {
+		const body =
+			"- Remove always-auth configuration handling by @priyagupta108 in https://github.com/actions/setup-node/pull/1436";
+		const out = extractBreakingChanges([{ tag_name: "v6.1.0", body }]);
+		assert.equal(out.length, 1);
+		assert.match(out[0]!, /Remove always-auth configuration handling$/);
+	});
+
+	it("strips a bare pull request link with no author", () => {
+		const body = "- Removed the legacy parser (https://github.com/x/y/pull/12)";
+		const out = extractBreakingChanges([{ tag_name: "v2.0.0", body }]);
+		assert.match(out[0]!, /Removed the legacy parser$/);
+	});
+
+	it("strips attribution that omits the leading \"by\"", () => {
+		const body =
+			"- Remove hardcoded bearer for mirror-url @marco-ippolito in https://github.com/actions/setup-node/pull/1467";
+		const out = extractBreakingChanges([{ tag_name: "v6.3.0", body }]);
+		assert.match(out[0]!, /Remove hardcoded bearer for mirror-url$/);
+	});
+
+	it("drops fenced code blocks from a section", () => {
+		const body = [
+			"## ⚠️",
+			"Caching is now automatic. To disable it, set the option:",
+			"```yaml",
+			"steps:",
+			"  - uses: actions/setup-node@v5",
+			"```",
+			"That is the whole change.",
+		].join("\n");
+		const out = extractBreakingChanges([{ tag_name: "v5.0.0", body }]);
+		assert.equal(out.length, 1);
+		assert.ok(!/uses:/.test(out[0]!), `code block leaked: ${out[0]}`);
+		assert.match(out[0]!, /Caching is now automatic/);
+	});
+
+	it("keeps a link that is part of the sentence", () => {
+		const body = "- Removed the old API, see https://example.com/migration for details";
+		const out = extractBreakingChanges([{ tag_name: "v2.0.0", body }]);
+		assert.match(out[0]!, /see https:\/\/example\.com\/migration for details/);
+	});
+
+	it("never leaks how the change was found", () => {
+		const body = "## Breaking\nGone.\n\n## Other\n- Removed foo";
+		const out = extractBreakingChanges([{ tag_name: "v2.0.0", body }]);
+		assert.ok(
+			out.every((e) => !/\((?:section|bullets)\)/.test(e)),
+			`parser internals leaked: ${JSON.stringify(out)}`
+		);
+	});
+
+	it("keeps sentence boundaries when condensing a section", () => {
+		const body = [
+			"## ⚠️",
+			"Caching is now automatic",
+			"Upgrade the action to use node24",
+			"Your runner must be v2.327.1 or later.",
+		].join("\n");
+		const out = extractBreakingChanges([{ tag_name: "v5.0.0", body }]);
+		assert.equal(out.length, 1);
+		// Without a boundary this reads "...automatic Upgrade the action...".
+		assert.match(out[0]!, /Caching is now automatic\. Upgrade the action to use node24\. Your runner/);
 	});
 
 	it("ignores non-breaking bullets", () => {
@@ -386,10 +516,10 @@ describe("extractBreakingChanges — noise filtering", () => {
 			},
 		];
 		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 1);
-		assert.match(out[0]!, /Deprecated API methods removed/);
-		assert.match(out[0]!, /Remove `debug` dependency/);
-		assert.doesNotMatch(out[0]!, /Appveyor/);
+		assert.deepEqual(out, [
+			"v5.0.0: Deprecated API methods removed: Removed old, deprecated API method signatures from Express v3/v4.",
+			"v5.0.0: Remove `debug` dependency",
+		]);
 	});
 
 	it("omits a breaking-changes section whose body is empty", () => {

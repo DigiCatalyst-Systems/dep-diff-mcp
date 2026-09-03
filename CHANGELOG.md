@@ -13,6 +13,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Lockfile-diff parser tool.
 - Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
+## [0.3.1] - 2026-09-02
+
+### Fixed
+
+- **Breaking-change extraction anchored on the wrong match, discarding the changes it was looking for.** The guard correctly required a heading such as `### ⚠️ String length counts code points`, but the extraction that followed searched for the bare word "breaking" anywhere in the body. On zod 4.5.0 the first such occurrence is 53kB down, inside `docs(v4): document coerce missing-key breaking change`, so the analysis returned a list of documentation commits and dropped all five real breaking changes sitting under emoji headings. Guard and extraction now walk the same headings: each breaking heading yields one entry, the heading's own title is used as the change where it carries one (`z.iso.datetime()` requires seconds), and the section body is condensed only when the heading is a bare marker. Sections stop at the next heading of any level, are chore-filtered like bullets already were, and are capped.
+- Fenced code blocks are dropped from a condensed section. Joining a YAML sample onto one line made everything around it unreadable.
+- Trailing attribution is stripped from release-note lines. GitHub's generated notes end each entry with `by @someone in https://github.com/o/r/pull/123`, which says nothing about what broke. A link that is part of the sentence is kept.
+
+### Changed
+
+- **`breakingChanges` now carries one change per entry, prefixed only by its tag.** Entries used to be labelled `(section)` or `(bullets)` — which described how the regex found the text, not what it was — and the bullet form joined several independent changes into one string with ` | `. That made the count wrong: `actions/setup-node` 4 -> 7 reported "4 breaking changes" where there are 6. Entries are now `v6.1.0: Remove always-auth configuration handling`, one per change. The declared `outputSchema` is unchanged (`string[]`), so this is not a breaking API change, but a consumer that split on ` | ` no longer needs to.
+- A condensed section supplies sentence boundaries between the lines it joins. Space-joining unpunctuated lines produced `…caching is automatic Upgrade the action to use node24 Make sure your runner…`, which reads as one broken sentence.
+
 ## [0.3.0] - 2026-09-02
 
 ### Added
