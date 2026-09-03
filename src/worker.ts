@@ -180,7 +180,7 @@ const BULK_SUMMARY_JSON_SCHEMA = {
 const SERVER_CARD = {
 	serverInfo: {
 		name: "dep-diff",
-		version: "0.2.3",
+		version: "0.2.4",
 	},
 	authentication: {
 		required: false,
