@@ -42,6 +42,31 @@ It calls `analyze_package_change` and gets back:
 
 A patch bump you would normally merge without looking. It closes a **HIGH-severity command injection**. That is the case this server exists for.
 
+### GitHub Actions
+
+Dependabot opens more `actions/*` pull requests than almost anything else, and its
+scheduled version updates carry no advisory data. Ask:
+
+> Is it safe to bump tj-actions/changed-files from 45.0.7 to 46.0.1?
+
+```json
+{
+  "package": "tj-actions/changed-files",
+  "ecosystem": "github-actions",
+  "semverClass": "major",
+  "repoUrl": "https://github.com/tj-actions/changed-files",
+  "securityFixes": [
+    {
+      "id": "GHSA-mrrh-fwg8-r2c3",
+      "summary": "tj-actions changed-files through 45.0.7 allows remote attackers to discover secrets",
+      "severity": "HIGH"
+    }
+  ],
+  "recommendation": "RECOMMENDED: 1 security fix(es) (incl. high/critical).",
+  "recommendationLevel": "security"
+}
+```
+
 ### A whole Dependabot batch
 
 > Here's my Dependabot PR — what's actually risky in it?
@@ -196,7 +221,7 @@ Then reference it in the MCP config:
 ## Tools
 
 ### `analyze_package_change`
-Analyze one package upgrade. Inputs: `ecosystem` (`npm` or `pypi`), `name`, `fromVersion`, `toVersion`.
+Analyze one package upgrade. Inputs: `ecosystem` (`npm`, `pypi`, or `github-actions`), `name`, `fromVersion`, `toVersion`.
 
 ### `analyze_packages_bulk`
 Analyze up to 50 package upgrades in parallel. Returns packages ranked by risk (`security` > `caution` > `review` > `likely-safe` > `safe`), plus summary counts.
@@ -219,6 +244,7 @@ Clients that don't are unaffected — the text block is unchanged.
 
 - npm
 - PyPI
+- GitHub Actions — pass the action reference as the name (`actions/checkout`, or a nested `github/codeql-action/init`). An action reference is already a repository coordinate, so release notes and breaking changes resolve without a registry lookup, and bare major tags such as `4 -> 5` classify correctly.
 
 ## Development
 

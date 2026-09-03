@@ -1,7 +1,7 @@
 import semver from "semver";
 import { LRUCache } from "lru-cache";
 
-export type Ecosystem = "npm" | "pypi";
+export type Ecosystem = "npm" | "pypi" | "github-actions";
 
 const cache = new LRUCache<string, object>({
 	max: 500,
@@ -34,7 +34,68 @@ export type PackageAnalysis = {
 	recommendationLevel: "safe" | "likely-safe" | "review" | "caution" | "security";
 };
 
-const OSV_ECOSYSTEM: Record<Ecosystem, string> = { npm: "npm", pypi: "PyPI" };
+const OSV_ECOSYSTEM: Record<Ecosystem, string> = {
+	npm: "npm",
+	pypi: "PyPI",
+	"github-actions": "GitHub Actions",
+};
+
+// ---------- GitHub Actions ----------
+
+// An action reference IS its repository: `actions/checkout` lives at
+// github.com/actions/checkout, so no registry lookup is needed. A nested action
+// such as `github/codeql-action/init` still belongs to the two-segment repo.
+export function parseActionRepo(name: string): { owner: string; repo: string } | null {
+	if (name.startsWith("@")) return null;
+	const [owner, repo] = name.split("/");
+	if (!owner || !repo) return null;
+	return { owner, repo };
+}
+
+// OSV publishes no version enumeration for the "GitHub Actions" ecosystem, so a
+// query carrying a version matches nothing and every advisory is missed. Query by
+// package alone and evaluate the ranges here instead.
+export function isVersionAffected(vuln: any, name: string, version: string): boolean {
+	const parsed = semver.coerce(version);
+	if (!parsed) return false;
+
+	for (const affected of vuln?.affected ?? []) {
+		if (affected?.package?.name !== name) continue;
+
+		if (Array.isArray(affected.versions) && affected.versions.length > 0) {
+			if (affected.versions.some((v: string) => semver.coerce(v)?.version === parsed.version)) {
+				return true;
+			}
+		}
+
+		for (const range of affected.ranges ?? []) {
+			let introduced: semver.SemVer | null = null;
+			for (const event of range?.events ?? []) {
+				if (event.introduced !== undefined) {
+					introduced = event.introduced === "0" ? semver.coerce("0.0.0") : semver.coerce(event.introduced);
+					if (introduced && semver.lt(parsed, introduced)) introduced = null;
+				} else if (event.fixed !== undefined && introduced) {
+					const fixed = semver.coerce(event.fixed);
+					if (fixed && semver.lt(parsed, fixed)) return true;
+					introduced = null;
+				} else if (event.last_affected !== undefined && introduced) {
+					const last = semver.coerce(event.last_affected);
+					if (last && semver.lte(parsed, last)) return true;
+					introduced = null;
+				}
+			}
+			// An introduced bound the version cleared, with no fix after it.
+			if (introduced) return true;
+		}
+	}
+	return false;
+}
+
+export function selectFixedCves(vulns: any[], name: string, from: string, to: string): any[] {
+	return vulns.filter(
+		(v) => isVersionAffected(v, name, from) && !isVersionAffected(v, name, to)
+	);
+}
 
 // ---------- Semver classification ----------
 
@@ -237,6 +298,20 @@ async function fetchCvesAtVersion(ecosystem: Ecosystem, name: string, version: s
 	});
 }
 
+// Package-only OSV query, for ecosystems where OSV cannot resolve a version itself.
+async function fetchAllCves(ecosystem: Ecosystem, name: string) {
+	return cached(`osv-all:${ecosystem}:${name}`, async () => {
+		const res = await fetch("https://api.osv.dev/v1/query", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ package: { name, ecosystem: OSV_ECOSYSTEM[ecosystem] } }),
+		});
+		if (!res.ok) return [] as any[];
+		const data = (await res.json()) as { vulns?: any[] };
+		return data.vulns ?? [];
+	});
+}
+
 // ---------- Breaking change extraction ----------
 
 const BREAKING_HEADER = /(?:^|\n)#{1,4}\s*(?:breaking changes?|breaking|💥|🚨|⚠️)/i;
@@ -393,19 +468,40 @@ export async function analyzePackageChange(
 ): Promise<PackageAnalysis> {
 	const semverClass = classifyBump(fromVersion, toVersion);
 
-	const meta = ecosystem === "npm" ? await fetchNpmMeta(name) : await fetchPyPIMeta(name);
-	const repo = extractGitHubRepo(meta, ecosystem);
+	// A GitHub Actions reference is already a repo coordinate, so there is no
+	// registry to look it up in.
+	const repo =
+		ecosystem === "github-actions"
+			? parseActionRepo(name)
+			: extractGitHubRepo(
+					ecosystem === "npm" ? await fetchNpmMeta(name) : await fetchPyPIMeta(name),
+					ecosystem
+				);
 
-	const [releases, cvesAtFrom, cvesAtTo] = await Promise.all([
-		repo
-			? fetchReleasesBetween(repo.owner, repo.repo, fromVersion, toVersion, githubToken).catch(() => [])
-			: Promise.resolve([]),
-		fetchCvesAtVersion(ecosystem, name, fromVersion).catch(() => []),
-		fetchCvesAtVersion(ecosystem, name, toVersion).catch(() => []),
-	]);
+	const releasesPromise = repo
+		? fetchReleasesBetween(repo.owner, repo.repo, fromVersion, toVersion, githubToken).catch(() => [])
+		: Promise.resolve([] as any[]);
 
-	const toIds = new Set(cvesAtTo.map((c: any) => c.id));
-	const fixedCves = cvesAtFrom.filter((c: any) => !toIds.has(c.id));
+	let fixedCves: any[];
+	let releases: any[];
+	if (ecosystem === "github-actions") {
+		// OSV has no version enumeration here, so a versioned query returns nothing.
+		const [rel, allCves] = await Promise.all([
+			releasesPromise,
+			fetchAllCves(ecosystem, name).catch(() => [] as any[]),
+		]);
+		releases = rel;
+		fixedCves = selectFixedCves(allCves, name, fromVersion, toVersion);
+	} else {
+		const [rel, cvesAtFrom, cvesAtTo] = await Promise.all([
+			releasesPromise,
+			fetchCvesAtVersion(ecosystem, name, fromVersion).catch(() => []),
+			fetchCvesAtVersion(ecosystem, name, toVersion).catch(() => []),
+		]);
+		releases = rel;
+		const toIds = new Set(cvesAtTo.map((c: any) => c.id));
+		fixedCves = cvesAtFrom.filter((c: any) => !toIds.has(c.id));
+	}
 
 	const breakingChanges = extractBreakingChanges(releases);
 	const migrationLinks = extractMigrationLinks(releases);

@@ -8,6 +8,9 @@ import {
 	extractReleaseExcerpts,
 	filterReleasesInRange,
 	collectReleasePages,
+	parseActionRepo,
+	isVersionAffected,
+	selectFixedCves,
 	ReleaseFetchError,
 } from "../src/analyzer.ts";
 
@@ -454,5 +457,147 @@ describe("collectReleasePages", () => {
 			() => collectReleasePages(async (n) => pages[n - 1]!),
 			(e: unknown) => e instanceof ReleaseFetchError && (e as ReleaseFetchError).page === 2
 		);
+	});
+});
+
+describe("parseActionRepo", () => {
+	it("reads owner and repo from an action reference", () => {
+		assert.deepEqual(parseActionRepo("actions/checkout"), { owner: "actions", repo: "checkout" });
+	});
+
+	it("drops the subdirectory of a nested action", () => {
+		assert.deepEqual(parseActionRepo("github/codeql-action/init"), {
+			owner: "github",
+			repo: "codeql-action",
+		});
+	});
+
+	it("rejects a bare package name", () => {
+		assert.equal(parseActionRepo("lodash"), null);
+	});
+
+	it("rejects an npm scoped package", () => {
+		assert.equal(parseActionRepo("@actions/core"), null);
+	});
+
+	it("rejects an empty segment", () => {
+		assert.equal(parseActionRepo("actions/"), null);
+		assert.equal(parseActionRepo("/checkout"), null);
+	});
+});
+
+// OSV has no version enumeration for the "GitHub Actions" ecosystem, so a query
+// carrying a version returns nothing. Ranges have to be evaluated here instead.
+describe("isVersionAffected", () => {
+	const changedFiles = {
+		id: "GHSA-mrrh-fwg8-r2c3",
+		affected: [
+			{
+				package: { name: "tj-actions/changed-files", ecosystem: "GitHub Actions" },
+				ranges: [{ type: "ECOSYSTEM", events: [{ introduced: "0" }, { fixed: "46.0.1" }] }],
+			},
+		],
+	};
+
+	it("reports a version below the fix as affected", () => {
+		assert.equal(isVersionAffected(changedFiles, "tj-actions/changed-files", "45.0.7"), true);
+	});
+
+	it("reports the fixed version itself as unaffected", () => {
+		assert.equal(isVersionAffected(changedFiles, "tj-actions/changed-files", "46.0.1"), false);
+		assert.equal(isVersionAffected(changedFiles, "tj-actions/changed-files", "46.0.2"), false);
+	});
+
+	it("coerces bare major tags on both sides", () => {
+		const vuln = {
+			affected: [
+				{
+					package: { name: "tj-actions/changed-files", ecosystem: "GitHub Actions" },
+					ranges: [{ type: "ECOSYSTEM", events: [{ introduced: "0" }, { fixed: "41" }] }],
+				},
+			],
+		};
+		assert.equal(isVersionAffected(vuln, "tj-actions/changed-files", "40"), true);
+		assert.equal(isVersionAffected(vuln, "tj-actions/changed-files", "v40"), true);
+		assert.equal(isVersionAffected(vuln, "tj-actions/changed-files", "41"), false);
+	});
+
+	it("honours the introduced bound", () => {
+		const vuln = {
+			affected: [
+				{
+					package: { name: "some/action", ecosystem: "GitHub Actions" },
+					ranges: [{ type: "ECOSYSTEM", events: [{ introduced: "2.0.0" }, { fixed: "3.0.0" }] }],
+				},
+			],
+		};
+		assert.equal(isVersionAffected(vuln, "some/action", "1.9.0"), false);
+		assert.equal(isVersionAffected(vuln, "some/action", "2.0.0"), true);
+		assert.equal(isVersionAffected(vuln, "some/action", "2.5.0"), true);
+	});
+
+	it("treats a range with no fix as affected without an upper bound", () => {
+		const vuln = {
+			affected: [
+				{
+					package: { name: "some/action", ecosystem: "GitHub Actions" },
+					ranges: [{ type: "ECOSYSTEM", events: [{ introduced: "1.0.0" }] }],
+				},
+			],
+		};
+		assert.equal(isVersionAffected(vuln, "some/action", "99.0.0"), true);
+	});
+
+	it("ignores affected entries for a different package", () => {
+		assert.equal(isVersionAffected(changedFiles, "actions/checkout", "1.0.0"), false);
+	});
+
+	it("falls back to an explicit versions list when present", () => {
+		const vuln = {
+			affected: [
+				{
+					package: { name: "some/action", ecosystem: "GitHub Actions" },
+					versions: ["1.0.0", "1.0.1"],
+				},
+			],
+		};
+		assert.equal(isVersionAffected(vuln, "some/action", "1.0.1"), true);
+		assert.equal(isVersionAffected(vuln, "some/action", "1.0.2"), false);
+	});
+
+	it("returns false for an unparseable version", () => {
+		assert.equal(isVersionAffected(changedFiles, "tj-actions/changed-files", "main"), false);
+	});
+});
+
+describe("selectFixedCves", () => {
+	const vuln = (id: string, fixed: string) => ({
+		id,
+		affected: [
+			{
+				package: { name: "tj-actions/changed-files", ecosystem: "GitHub Actions" },
+				ranges: [{ type: "ECOSYSTEM", events: [{ introduced: "0" }, { fixed }] }],
+			},
+		],
+	});
+	const vulns = [vuln("GHSA-old", "41"), vuln("GHSA-new", "46.0.1")];
+
+	it("keeps advisories the upgrade actually resolves", () => {
+		const fixed = selectFixedCves(vulns, "tj-actions/changed-files", "45.0.7", "46.0.1");
+		assert.deepEqual(fixed.map((v) => v.id), ["GHSA-new"]);
+	});
+
+	it("drops advisories that still apply after the upgrade", () => {
+		const fixed = selectFixedCves(vulns, "tj-actions/changed-files", "40", "45.0.7");
+		assert.deepEqual(fixed.map((v) => v.id), ["GHSA-old"]);
+	});
+
+	it("returns nothing when the old version was never affected", () => {
+		assert.deepEqual(selectFixedCves(vulns, "tj-actions/changed-files", "46.0.1", "47"), []);
+	});
+
+	it("returns both when the bump clears every advisory", () => {
+		const fixed = selectFixedCves(vulns, "tj-actions/changed-files", "40", "46.0.1");
+		assert.deepEqual(fixed.map((v) => v.id), ["GHSA-old", "GHSA-new"]);
 	});
 });
