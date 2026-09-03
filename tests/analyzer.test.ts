@@ -129,9 +129,7 @@ describe("extractBreakingChanges", () => {
 			},
 		];
 		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 1);
-		assert.match(out[0]!, /v2\.0\.0 \(section\)/);
-		assert.match(out[0]!, /Dropped IE11 support/);
+		assert.deepEqual(out, ["v2.0.0: Dropped IE11 support."]);
 	});
 
 	it("captures strong bullet patterns without explicit section", () => {
@@ -141,12 +139,13 @@ describe("extractBreakingChanges", () => {
 				body: "Release notes\n\n- Removed deprecated foo API\n- No longer supports Node 14\n- Now requires Python 3.10",
 			},
 		];
-		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 1);
-		assert.match(out[0]!, /v3\.0\.0 \(bullets\)/);
-		assert.match(out[0]!, /Removed deprecated foo API/);
-		assert.match(out[0]!, /No longer supports Node 14/);
-		assert.match(out[0]!, /Now requires Python 3\.10/);
+		// One entry per change: joining them into a single string made the count
+		// wrong and forced the reader to split on a pipe.
+		assert.deepEqual(extractBreakingChanges(releases), [
+			"v3.0.0: Removed deprecated foo API",
+			"v3.0.0: No longer supports Node 14",
+			"v3.0.0: Now requires Python 3.10",
+		]);
 	});
 
 	it("captures deprecated/renamed/dropped-support bullets", () => {
@@ -157,19 +156,18 @@ describe("extractBreakingChanges", () => {
 			},
 		];
 		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 1);
-		assert.match(out[0]!, /Deprecated/);
-		assert.match(out[0]!, /Renamed/);
-		assert.match(out[0]!, /Dropped support/);
+		assert.equal(out.length, 3);
+		assert.ok(out.every((e) => e.startsWith("v4.0.0: ")), JSON.stringify(out));
+		assert.match(out.join(" "), /Deprecated old helper/);
+		assert.match(out.join(" "), /Renamed foo to bar/);
+		assert.match(out.join(" "), /Dropped support for Node 16/);
 	});
 
 	it("caps bullets per release", () => {
 		const bullets = Array.from({ length: 25 }, (_, i) => `- Removed feature ${i}`).join("\n");
 		const releases = [{ tag_name: "v1.0.0", body: bullets }];
 		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 1);
-		const bulletEntries = out[0]!.split(" | ");
-		assert.ok(bulletEntries.length <= 10, `expected <= 10 bullets, got ${bulletEntries.length}`);
+		assert.ok(out.length <= 10, `expected <= 10 entries, got ${out.length}`);
 	});
 
 	it("truncates long bullet lines", () => {
@@ -178,6 +176,7 @@ describe("extractBreakingChanges", () => {
 		const out = extractBreakingChanges(releases);
 		assert.equal(out.length, 1);
 		assert.ok(out[0]!.includes("…"), "expected ellipsis truncation");
+		assert.ok(!out[0]!.includes("(bullets)"), "parser internals must not leak");
 	});
 
 	it("returns both section and bullet entries when both present", () => {
@@ -188,9 +187,10 @@ describe("extractBreakingChanges", () => {
 			},
 		];
 		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 2);
-		assert.ok(out.some((e) => e.includes("(section)")));
-		assert.ok(out.some((e) => e.includes("(bullets)")));
+		assert.equal(out.length, 3);
+		assert.ok(out.includes("v2.0.0: Some top-level change."), JSON.stringify(out));
+		assert.ok(out.includes("v2.0.0: Removed foo"), JSON.stringify(out));
+		assert.ok(out.includes("v2.0.0: No longer supports bar"), JSON.stringify(out));
 	});
 
 	// zod v4.5.0 flags five real breaking changes with emoji headings, then mentions
@@ -299,6 +299,28 @@ describe("extractBreakingChanges", () => {
 		const body = "- Removed the old API, see https://example.com/migration for details";
 		const out = extractBreakingChanges([{ tag_name: "v2.0.0", body }]);
 		assert.match(out[0]!, /see https:\/\/example\.com\/migration for details/);
+	});
+
+	it("never leaks how the change was found", () => {
+		const body = "## Breaking\nGone.\n\n## Other\n- Removed foo";
+		const out = extractBreakingChanges([{ tag_name: "v2.0.0", body }]);
+		assert.ok(
+			out.every((e) => !/\((?:section|bullets)\)/.test(e)),
+			`parser internals leaked: ${JSON.stringify(out)}`
+		);
+	});
+
+	it("keeps sentence boundaries when condensing a section", () => {
+		const body = [
+			"## ⚠️",
+			"Caching is now automatic",
+			"Upgrade the action to use node24",
+			"Your runner must be v2.327.1 or later.",
+		].join("\n");
+		const out = extractBreakingChanges([{ tag_name: "v5.0.0", body }]);
+		assert.equal(out.length, 1);
+		// Without a boundary this reads "...automatic Upgrade the action...".
+		assert.match(out[0]!, /Caching is now automatic\. Upgrade the action to use node24\. Your runner/);
 	});
 
 	it("ignores non-breaking bullets", () => {
@@ -494,10 +516,10 @@ describe("extractBreakingChanges — noise filtering", () => {
 			},
 		];
 		const out = extractBreakingChanges(releases);
-		assert.equal(out.length, 1);
-		assert.match(out[0]!, /Deprecated API methods removed/);
-		assert.match(out[0]!, /Remove `debug` dependency/);
-		assert.doesNotMatch(out[0]!, /Appveyor/);
+		assert.deepEqual(out, [
+			"v5.0.0: Deprecated API methods removed: Removed old, deprecated API method signatures from Express v3/v4.",
+			"v5.0.0: Remove `debug` dependency",
+		]);
 	});
 
 	it("omits a breaking-changes section whose body is empty", () => {

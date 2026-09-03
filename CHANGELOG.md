@@ -21,6 +21,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Fenced code blocks are dropped from a condensed section. Joining a YAML sample onto one line made everything around it unreadable.
 - Trailing attribution is stripped from release-note lines. GitHub's generated notes end each entry with `by @someone in https://github.com/o/r/pull/123`, which says nothing about what broke. A link that is part of the sentence is kept.
 
+### Changed
+
+- **`breakingChanges` now carries one change per entry, prefixed only by its tag.** Entries used to be labelled `(section)` or `(bullets)` — which described how the regex found the text, not what it was — and the bullet form joined several independent changes into one string with ` | `. That made the count wrong: `actions/setup-node` 4 -> 7 reported "4 breaking changes" where there are 6. Entries are now `v6.1.0: Remove always-auth configuration handling`, one per change. The declared `outputSchema` is unchanged (`string[]`), so this is not a breaking API change, but a consumer that split on ` | ` no longer needs to.
+- A condensed section supplies sentence boundaries between the lines it joins. Space-joining unpunctuated lines produced `…caching is automatic Upgrade the action to use node24 Make sure your runner…`, which reads as one broken sentence.
+
 ## [0.3.0] - 2026-09-02
 
 ### Added

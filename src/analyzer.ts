@@ -396,7 +396,11 @@ function condenseSection(lines: string[]): string {
 		.map((l) => l.trim().replace(/^[-*+]\s*/, "").replace(/\*\*/g, "").replace(ATTRIBUTION, "").trim())
 		.filter((l) => l.length > 0 && !CHORE_BULLET.test(l));
 	if (kept.length === 0) return "";
-	const joined = kept.join(" ");
+	// Space-joining two unpunctuated lines reads as one broken sentence
+	// ("...caching is automatic Upgrade the action..."), so supply the boundary.
+	const joined = kept
+		.map((l, i) => (i === kept.length - 1 || /[.!?:;]$/.test(l) ? l : l + "."))
+		.join(" ");
 	return joined.length > MAX_SECTION_LEN ? joined.slice(0, MAX_SECTION_LEN) + "…" : joined;
 }
 
@@ -420,7 +424,7 @@ function extractBreakingSections(body: string, tag: string): string[] {
 		if (current === null) return;
 		const title = current.replace(BREAKING_MARKER, "").replace(/[\s#]+$/, "").trim();
 		const text = title || condenseSection(buffer);
-		if (text && !CHORE_BULLET.test(text)) out.push(`${tag} (section): ${text}`);
+		if (text && !CHORE_BULLET.test(text)) out.push(`${tag}: ${text}`);
 		current = null;
 		buffer = [];
 	};
@@ -452,20 +456,18 @@ export function extractBreakingChanges(releases: any[]): string[] {
 			// The release itself is announced as breaking but carries no heading to
 			// anchor on, so the body as a whole is the best available answer.
 			const excerpt = condenseSection(body.split(/\r?\n/));
-			if (excerpt) breaking.push(`${tag} (section): ${excerpt}`);
+			if (excerpt) breaking.push(`${tag}: ${excerpt}`);
 		}
 
-		const bullets: string[] = [];
+		// One entry per change. Joining several onto one line made the count wrong
+		// and left the reader splitting on a pipe.
+		let bullets = 0;
 		for (const line of body.split(/\r?\n/)) {
-			if (STRONG_BULLET.test(line)) {
-				const text = trimLine(line, MAX_BULLET_LEN);
-				if (!isSubstantiveBullet(text)) continue;
-				bullets.push(text);
-				if (bullets.length >= MAX_BULLETS_PER_RELEASE) break;
-			}
-		}
-		if (bullets.length > 0) {
-			breaking.push(`${tag} (bullets): ${bullets.join(" | ")}`);
+			if (!STRONG_BULLET.test(line)) continue;
+			const text = trimLine(line, MAX_BULLET_LEN);
+			if (!isSubstantiveBullet(text)) continue;
+			breaking.push(`${tag}: ${text}`);
+			if (++bullets >= MAX_BULLETS_PER_RELEASE) break;
 		}
 	}
 	return breaking;
