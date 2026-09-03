@@ -8,6 +8,12 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Pauses for a human approval before anything reaches npm. A publish cannot
+    # be undone after 72 hours, so the tag push alone should not be the last
+    # word. The `release` environment also scopes the OIDC token: npm's trusted
+    # publisher can be pinned to it, so editing this file cannot route around
+    # the gate.
+    environment: release
     permissions:
       contents: read
       id-token: write
