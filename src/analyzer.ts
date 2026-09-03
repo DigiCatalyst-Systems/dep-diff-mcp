@@ -356,9 +356,88 @@ const MAX_BULLETS_PER_RELEASE = 10;
 const MAX_BULLET_LEN = 300;
 const MAX_SECTION_LEN = 800;
 
+// GitHub's generated release notes close every line with an attribution that says
+// nothing about what broke: "... by @someone in https://github.com/o/r/pull/123".
+const ATTRIBUTION = /\s*[([]?\s*(?:(?:by\s+)?@[\w-]+\s+in\s+)?https?:\/\/github\.com\/\S+?\/pull\/\d+\s*[)\]]?\s*$/i;
+
 function trimLine(line: string, max: number): string {
-	const clean = line.trim().replace(/^[-*+]\s*/, "").replace(/\*\*/g, "");
+	const clean = line
+		.trim()
+		.replace(/^[-*+]\s*/, "")
+		.replace(/\*\*/g, "")
+		.replace(ATTRIBUTION, "")
+		.trim();
 	return clean.length > max ? clean.slice(0, max) + "…" : clean;
+}
+
+// The marker that makes a heading a breaking-change heading. Whatever follows it
+// is the change itself: `### ⚠️ String length counts code points` needs no body.
+const BREAKING_MARKER = /^\s*(?:💥|🚨|⚠️|breaking\s+changes?|breaking)\s*[:–—-]*\s*/i;
+
+const HEADING_LINE = /^#{1,4}\s+(.*)$/;
+
+const MAX_SECTIONS_PER_RELEASE = 5;
+
+/** Body text under a heading, minus the churn, as one capped line. */
+function condenseSection(lines: string[]): string {
+	// A fenced block is configuration or sample code, not a statement of what broke,
+	// and joining it into one line makes the rest unreadable.
+	const prose: string[] = [];
+	let fenced = false;
+	for (const line of lines) {
+		if (/^\s*```/.test(line)) {
+			fenced = !fenced;
+			continue;
+		}
+		if (!fenced) prose.push(line);
+	}
+
+	const kept = prose
+		.map((l) => l.trim().replace(/^[-*+]\s*/, "").replace(/\*\*/g, "").replace(ATTRIBUTION, "").trim())
+		.filter((l) => l.length > 0 && !CHORE_BULLET.test(l));
+	if (kept.length === 0) return "";
+	const joined = kept.join(" ");
+	return joined.length > MAX_SECTION_LEN ? joined.slice(0, MAX_SECTION_LEN) + "…" : joined;
+}
+
+/**
+ * Walk the headings and keep the ones marked breaking.
+ *
+ * The previous version tested for a breaking *heading* but then searched for the
+ * bare word "breaking" anywhere in the body, so a release whose real breaking
+ * changes sat under `### ⚠️` headings could return an unrelated changelog line
+ * that happened to contain the word — and drop every actual change. Guard and
+ * extraction now anchor on the same match.
+ */
+function extractBreakingSections(body: string, tag: string): string[] {
+	const out: string[] = [];
+	const lines = body.split(/\r?\n/);
+
+	let current: string | null = null;
+	let buffer: string[] = [];
+
+	const flush = () => {
+		if (current === null) return;
+		const title = current.replace(BREAKING_MARKER, "").replace(/[\s#]+$/, "").trim();
+		const text = title || condenseSection(buffer);
+		if (text && !CHORE_BULLET.test(text)) out.push(`${tag} (section): ${text}`);
+		current = null;
+		buffer = [];
+	};
+
+	for (const line of lines) {
+		const heading = line.match(HEADING_LINE);
+		if (!heading) {
+			if (current !== null) buffer.push(line);
+			continue;
+		}
+		flush();
+		if (out.length >= MAX_SECTIONS_PER_RELEASE) return out;
+		const text = heading[1]!.trim();
+		if (BREAKING_MARKER.test(text)) current = text;
+	}
+	flush();
+	return out.slice(0, MAX_SECTIONS_PER_RELEASE);
 }
 
 export function extractBreakingChanges(releases: any[]): string[] {
@@ -367,10 +446,12 @@ export function extractBreakingChanges(releases: any[]): string[] {
 		const body: string = rel.body ?? "";
 		const tag = rel.tag_name ?? rel.name ?? "unknown";
 
-		if (BREAKING_HEADER.test(body) || /breaking/i.test(rel.name ?? "")) {
-			const m = body.match(/(?:breaking changes?|breaking)[^\n]*\n([\s\S]+?)(?=\n?\s*#{1,4}\s|$)/i);
-			const excerpt = m?.[1]?.trim().slice(0, MAX_SECTION_LEN);
-			// A heading with nothing under it is noise, not a breaking change.
+		if (BREAKING_HEADER.test(body)) {
+			breaking.push(...extractBreakingSections(body, tag));
+		} else if (/breaking/i.test(rel.name ?? "")) {
+			// The release itself is announced as breaking but carries no heading to
+			// anchor on, so the body as a whole is the best available answer.
+			const excerpt = condenseSection(body.split(/\r?\n/));
 			if (excerpt) breaking.push(`${tag} (section): ${excerpt}`);
 		}
 
