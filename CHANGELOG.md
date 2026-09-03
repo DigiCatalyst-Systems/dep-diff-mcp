@@ -13,6 +13,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Lockfile-diff parser tool.
 - Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
+## [0.3.2] - 2026-09-03
+
+### Fixed
+
+- **A "Breaking Changes" section is split per bullet instead of condensed into one paragraph.** Such a heading is usually a list, not prose: each bullet is one change, and the sentence beneath it carries the detail that matters. `actions/setup-node` v5.0.0 is the case — the bullet says "Upgrade action to use node24" and the line under it says the runner must be `v2.327.1` or later. Condensing produced a single run-on entry that buried the runner requirement at the end, which is the one thing in that release capable of breaking a workflow. The section now yields one entry per bullet, each keeping its own prose; a section with no bullets is genuinely a paragraph and still condenses.
+- **A change found by both extraction paths is reported once.** A bullet under a breaking heading was caught by the section split and by the bullet scan alike, so every such change appeared twice and the count doubled.
+- Fenced code blocks are stripped from a bullet's prose as well as from a condensed section.
+
 ## [0.3.1] - 2026-09-02
 
 ### Fixed

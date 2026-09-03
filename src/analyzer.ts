@@ -379,6 +379,65 @@ const HEADING_LINE = /^#{1,4}\s+(.*)$/;
 const MAX_SECTIONS_PER_RELEASE = 5;
 
 /** Body text under a heading, minus the churn, as one capped line. */
+const BULLET_LINE = /^\s*[-*+]\s+/;
+const MAX_SECTION_ENTRY_LEN = 240;
+
+/**
+ * A "Breaking Changes" heading is usually a list, not a paragraph: each bullet is
+ * one change, and the prose under it carries the detail that matters. Real case,
+ * actions/setup-node v5.0.0 -- the bullet says "Upgrade action to use node24" and
+ * the sentence beneath it says the runner must be v2.327.1 or later. Condensing
+ * the section into a single string buried that at the end of a run-on paragraph.
+ *
+ * Split on the bullets, keep each one's prose with it, and return one entry per
+ * change. A section with no bullets is genuinely a paragraph, so it condenses.
+ */
+function splitSectionEntries(lines: string[]): string[] {
+	const prose = stripFences(lines);
+	if (!prose.some((l) => BULLET_LINE.test(l))) {
+		const single = condenseLines(prose);
+		return single ? [single] : [];
+	}
+
+	const chunks: string[][] = [];
+	for (const line of prose) {
+		if (BULLET_LINE.test(line)) chunks.push([line]);
+		else if (chunks.length > 0) chunks[chunks.length - 1]!.push(line);
+	}
+
+	const out: string[] = [];
+	for (const chunk of chunks) {
+		const text = condenseLines(chunk, MAX_SECTION_ENTRY_LEN);
+		if (text && !CHORE_BULLET.test(text)) out.push(text);
+	}
+	return out;
+}
+
+/** A fenced block is configuration or sample code, not a statement of what broke. */
+function stripFences(lines: string[]): string[] {
+	const out: string[] = [];
+	let fenced = false;
+	for (const line of lines) {
+		if (/^\s*```/.test(line)) {
+			fenced = !fenced;
+			continue;
+		}
+		if (!fenced) out.push(line);
+	}
+	return out;
+}
+
+function condenseLines(lines: string[], max: number = MAX_SECTION_LEN): string {
+	const kept = lines
+		.map((l) => l.trim().replace(/^[-*+]\s*/, "").replace(/\*\*/g, "").replace(ATTRIBUTION, "").trim())
+		.filter((l) => l.length > 0 && !CHORE_BULLET.test(l));
+	if (kept.length === 0) return "";
+	const joined = kept
+		.map((l, i) => (i === kept.length - 1 || /[.!?:;]$/.test(l) ? l : l + "."))
+		.join(" ");
+	return joined.length > max ? joined.slice(0, max) + "…" : joined;
+}
+
 function condenseSection(lines: string[]): string {
 	// A fenced block is configuration or sample code, not a statement of what broke,
 	// and joining it into one line makes the rest unreadable.
@@ -423,8 +482,11 @@ function extractBreakingSections(body: string, tag: string): string[] {
 	const flush = () => {
 		if (current === null) return;
 		const title = current.replace(BREAKING_MARKER, "").replace(/[\s#]+$/, "").trim();
-		const text = title || condenseSection(buffer);
-		if (text && !CHORE_BULLET.test(text)) out.push(`${tag}: ${text}`);
+		if (title) {
+			if (!CHORE_BULLET.test(title)) out.push(`${tag}: ${title}`);
+		} else {
+			for (const text of splitSectionEntries(buffer)) out.push(`${tag}: ${text}`);
+		}
 		current = null;
 		buffer = [];
 	};
@@ -470,7 +532,9 @@ export function extractBreakingChanges(releases: any[]): string[] {
 			if (++bullets >= MAX_BULLETS_PER_RELEASE) break;
 		}
 	}
-	return breaking;
+	// A bullet under a breaking heading is found by the section split and by the
+	// bullet scan alike, which reported the same change twice and doubled the count.
+	return [...new Set(breaking)];
 }
 
 const MAX_EXCERPT_RELEASES = 5;
