@@ -15,6 +15,77 @@ export const configSchema = z.object({
 const limit = pLimit(8);
 const ecosystemSchema = z.enum(["npm", "pypi"]).describe("Package ecosystem");
 
+const securityFixSchema = z.object({
+	id: z.string().describe("Advisory identifier (e.g. 'GHSA-29mw-wpgm-hmr9' or a CVE)"),
+	summary: z.string().describe("One-line description of the advisory"),
+	severity: z.string().describe("Severity as reported by OSV (e.g. 'LOW', 'MODERATE', 'HIGH', 'CRITICAL')"),
+});
+
+/** Mirrors PackageAnalysis in analyzer.ts; tests/index.test.ts keeps the two in sync. */
+const packageAnalysisShape = {
+	package: z.string().describe("Package name that was analyzed"),
+	ecosystem: ecosystemSchema,
+	fromVersion: z.string().describe("Version being upgraded from"),
+	toVersion: z.string().describe("Version being upgraded to"),
+	semverClass: z
+		.enum(["major", "minor", "patch", "downgrade", "unknown"])
+		.describe("Semver relationship between the two versions"),
+	repoUrl: z
+		.string()
+		.nullable()
+		.describe("Source repository URL, or null when none could be resolved"),
+	releaseCount: z.number().describe("Number of GitHub releases found strictly between the two versions"),
+	breakingChanges: z
+		.array(z.string())
+		.describe("Breaking changes extracted from release notes; empty when none were found"),
+	releaseExcerpts: z
+		.array(
+			z.object({
+				tag: z.string().describe("Release tag the excerpt came from"),
+				excerpt: z.string().describe("Short excerpt of the release notes"),
+			})
+		)
+		.optional()
+		.describe(
+			"Raw release-note excerpts, present only as a fallback when a major/minor bump yielded no breaking changes"
+		),
+	securityFixes: z
+		.array(securityFixSchema)
+		.describe("Advisories affecting fromVersion that are resolved at toVersion"),
+	migrationLinks: z.array(z.string()).describe("Migration or upgrade guide URLs found in release notes"),
+	recommendation: z.string().describe("Single-line verdict explaining the recommendation level"),
+	recommendationLevel: z
+		.enum(["safe", "likely-safe", "review", "caution", "security"])
+		.describe("Risk classification, used to rank packages in bulk results"),
+};
+
+const packageAnalysisSchema = z.object(packageAnalysisShape);
+
+/** A package whose analysis rejected is reported in place rather than dropped. */
+const failedAnalysisSchema = z.object({
+	package: z.string().describe("Package name whose analysis failed"),
+	error: z.string().describe("Why the analysis could not be completed"),
+	recommendationLevel: z
+		.literal("review")
+		.describe("Always 'review' — a package that could not be analyzed cannot be cleared automatically"),
+});
+
+const bulkSummaryShape = {
+	totalPackages: z.number().describe("Number of package changes submitted"),
+	bySemverClass: z
+		.object({
+			major: z.number().describe("Count of major bumps"),
+			minor: z.number().describe("Count of minor bumps"),
+			patch: z.number().describe("Count of patch bumps"),
+		})
+		.describe("Breakdown of the batch by semver class"),
+	securityFixesTotal: z.number().describe("Total security advisories resolved across the whole batch"),
+	packagesWithBreakingChanges: z.number().describe("How many packages had at least one breaking change"),
+	packages: z
+		.array(z.union([packageAnalysisSchema, failedAnalysisSchema]))
+		.describe("Per-package results, ranked security > caution > review > likely-safe > safe"),
+};
+
 export function createMcpServer(githubToken?: string): McpServer {
 	const server = new McpServer({
 		name: "dep-diff",
@@ -46,13 +117,17 @@ export function createMcpServer(githubToken?: string): McpServer {
 				fromVersion: z.string().min(1).describe("Current version (e.g. '18.2.0')"),
 				toVersion: z.string().min(1).describe("Target version (e.g. '19.0.0')"),
 			},
+			outputSchema: packageAnalysisShape,
 		},
 		async ({ ecosystem, name, fromVersion, toVersion }) => {
 			try {
 				const result = await analyzePackageChange(
 					ecosystem as Ecosystem, name, fromVersion, toVersion, githubToken
 				);
-				return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+				return {
+					content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+					structuredContent: result,
+				};
 			} catch (err: any) {
 				return {
 					content: [{ type: "text", text: `Failed to analyze ${name}: ${err.message}` }],
@@ -94,6 +169,7 @@ export function createMcpServer(githubToken?: string): McpServer {
 					.max(50)
 					.describe("List of package changes to analyze"),
 			},
+			outputSchema: bulkSummaryShape,
 		},
 		async ({ changes }) => {
 			try {
@@ -136,7 +212,10 @@ export function createMcpServer(githubToken?: string): McpServer {
 					packages: sorted,
 				};
 
-				return { content: [{ type: "text", text: JSON.stringify(summary, null, 2) }] };
+				return {
+					content: [{ type: "text", text: JSON.stringify(summary, null, 2) }],
+					structuredContent: summary,
+				};
 			} catch (err: any) {
 				return {
 					content: [{ type: "text", text: `Bulk analysis failed: ${err?.message ?? String(err)}` }],

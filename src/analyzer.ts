@@ -16,7 +16,9 @@ async function cached<T extends object>(key: string, fn: () => Promise<T>): Prom
 	return value;
 }
 
-export interface PackageAnalysis {
+// A type alias rather than an interface: only aliases carry an implicit index
+// signature, which is what lets an analysis be returned as MCP structuredContent.
+export type PackageAnalysis = {
 	package: string;
 	ecosystem: Ecosystem;
 	fromVersion: string;
@@ -30,7 +32,7 @@ export interface PackageAnalysis {
 	migrationLinks: string[];
 	recommendation: string;
 	recommendationLevel: "safe" | "likely-safe" | "review" | "caution" | "security";
-}
+};
 
 const OSV_ECOSYSTEM: Record<Ecosystem, string> = { npm: "npm", pypi: "PyPI" };
 

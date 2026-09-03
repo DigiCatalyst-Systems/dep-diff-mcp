@@ -173,6 +173,25 @@ describe("worker fetch handler", () => {
 		assert.ok(card.prompts?.some((p) => p.name === "review_dependabot_pr"));
 		assert.ok(card.prompts?.some((p) => p.name === "explain_package_upgrade"));
 	});
+
+	it("server card advertises an output schema for every tool", async () => {
+		// Smithery scores the card, not the live tools/list, so the schemas have to
+		// be here too or the capability reads as missing.
+		const res = await workerHandler.fetch(
+			new Request("https://example.com/.well-known/mcp/server-card.json")
+		);
+		const card = (await res.json()) as {
+			tools?: { name: string; outputSchema?: { type?: string; properties?: Record<string, unknown> } }[];
+		};
+		for (const t of card.tools ?? []) {
+			assert.ok(t.outputSchema, `${t.name} needs an outputSchema`);
+			assert.equal(t.outputSchema.type, "object", `${t.name} outputSchema must be an object schema`);
+			assert.ok(
+				Object.keys(t.outputSchema.properties ?? {}).length > 0,
+				`${t.name} outputSchema needs properties`
+			);
+		}
+	});
 });
 
 describe("resolveToken (request token, then operator secret)", () => {
