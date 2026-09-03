@@ -6,13 +6,31 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # The default only opens a pull request when the declared range has to
+    # change, so a caret range that already covers the new version produces
+    # nothing -- the lockfile silently drifts behind and CI stops testing what
+    # a fresh install would resolve. `increase` bumps the declared version too.
+    #
+    # For devDependencies the declared floor reaches nobody. For runtime
+    # dependencies it does raise the minimum a consumer must accept, which is
+    # the honest cost here; declaring the version actually tested against is
+    # the reasonable side of that trade.
+    versioning-strategy: increase
     groups:
       # Dev tooling churns often and never reaches a consumer, so batch it into
       # one PR. Runtime dependencies stay individual for per-package review.
       dev-dependencies:
         dependency-type: "development"
 
+  # Actions are pinned to commit SHAs with the tag in a trailing comment, and
+  # Dependabot updates both. A pin always requires a manifest change, so no
+  # versioning strategy is needed here.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      # Every action reference lives in the same few workflow files, so one
+      # pull request per action leaves the rest conflicting after any merge.
+      actions:
+        patterns: ["*"]
