@@ -89,7 +89,7 @@ const bulkSummaryShape = {
 export function createMcpServer(githubToken?: string): McpServer {
 	const server = new McpServer({
 		name: "dep-diff",
-		version: "0.2.3",
+		version: "0.2.4",
 	});
 
 	server.registerTool(

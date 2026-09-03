@@ -13,6 +13,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Lockfile-diff parser tool.
 - Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
+## [0.2.4] - 2026-09-02
+
+### Added
+
+- Both tools declare an `outputSchema` and return `structuredContent` alongside the existing JSON text block. A client that supports structured output can read `recommendationLevel` or `securityFixes[]` directly off the response instead of re-parsing JSON out of a text block; the text block is byte-identical to before, so clients that ignore structured output are unaffected. Two shapes needed explicit modelling, because the SDK rejects any call whose `structuredContent` does not match the declared schema: `releaseExcerpts` is optional, emitted only as a fallback when a major or minor bump yielded no breaking changes, and `analyze_packages_bulk` reports a rejected analysis in place as `{package, error, recommendationLevel}` rather than dropping it, so `packages[]` is a union of the two shapes. Error paths are exempt, since output validation returns early on `isError`. The equivalent JSON Schema is mirrored into the Worker's `/.well-known/mcp/server-card.json`, which is the copy Smithery scans.
+
+### Changed
+
+- `PackageAnalysis` is now a type alias rather than an interface. `structuredContent` is typed as an index-signature object and only type aliases carry an implicit index signature, so an interface cannot be returned as one. No call sites change: there is no declaration merging, and indexed access such as `PackageAnalysis["semverClass"]` resolves identically.
+- `lru-cache` 11.3.5 -> 11.5.2, `zod` 4.3.6 -> 4.5.4, `p-limit` 7.3.0 -> 7.3.2. Lockfile-only with no advisories, collapsed from three Dependabot pull requests into a single change. Since `zod` underpins the new output schemas, the two branches were merged and tested together before either landed.
+
 ## [0.2.3] - 2026-09-02
 
 ### Fixed
@@ -184,7 +195,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.0...v0.2.1
