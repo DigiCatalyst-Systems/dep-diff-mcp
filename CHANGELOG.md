@@ -13,6 +13,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Lockfile-diff parser tool.
 - Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
+## [0.3.0] - 2026-09-02
+
+### Added
+
+- **GitHub Actions as a third ecosystem.** `ecosystem: "github-actions"` accepts an action reference as the package name — `actions/checkout`, or a nested `github/codeql-action/init`, which resolves to its parent repository. No registry lookup is involved: an action reference already *is* a GitHub repository coordinate, so release notes, breaking changes, and migration links come back exactly as they do for npm and PyPI. Bare major tags work throughout, so `4 -> 5` classifies as `major` and filters releases correctly. This closes the largest blind spot in Dependabot coverage: `actions/*` bumps are among the most common pull requests Dependabot opens, and until now the server had nothing to say about them.
+
+### Fixed
+
+- **GitHub Actions advisories are no longer silently missed.** OSV publishes no version enumeration for its `GitHub Actions` ecosystem, so a query carrying a version matches nothing and every advisory would have been dropped — a silent under-report, the worst kind. For this ecosystem the server now queries by package alone and evaluates the affected ranges itself, honouring `introduced`, `fixed`, `last_affected`, and explicit `versions` lists. Verified against `tj-actions/changed-files` 45.0.7 -> 46.0.1, which correctly reports the HIGH-severity GHSA-mrrh-fwg8-r2c3 as fixed. npm and PyPI are unchanged and still resolve versions server-side.
+
 ## [0.2.4] - 2026-09-02
 
 ### Added

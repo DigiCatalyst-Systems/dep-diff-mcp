@@ -46,7 +46,7 @@ const PACKAGE_ANALYSIS_JSON_SCHEMA = {
 	type: "object",
 	properties: {
 		package: { type: "string", description: "Package name that was analyzed" },
-		ecosystem: { type: "string", enum: ["npm", "pypi"], description: "Package ecosystem" },
+		ecosystem: { type: "string", enum: ["npm", "pypi", "github-actions"], description: "Package ecosystem" },
 		fromVersion: { type: "string", description: "Version being upgraded from" },
 		toVersion: { type: "string", description: "Version being upgraded to" },
 		semverClass: {
@@ -189,7 +189,7 @@ const SERVER_CARD = {
 		{
 			name: "analyze_package_change",
 			description:
-				"Given one package and two versions (from -> to), returns a structured upgrade analysis: semver classification, GitHub release notes summary, detected breaking changes, security advisories fixed in the range, migration guide links, and a clear recommendation. Use when the user asks about a specific package upgrade. Supports npm and pypi. For analyzing many packages at once, use analyze_packages_bulk instead.",
+				"Given one package and two versions (from -> to), returns a structured upgrade analysis: semver classification, GitHub release notes summary, detected breaking changes, security advisories fixed in the range, migration guide links, and a clear recommendation. Use when the user asks about a specific package upgrade. Supports npm, pypi, and github-actions (use the action reference as the name, e.g. actions/checkout). For analyzing many packages at once, use analyze_packages_bulk instead.",
 			annotations: {
 				title: "Analyze a single dependency version change",
 				readOnlyHint: true,
@@ -200,7 +200,7 @@ const SERVER_CARD = {
 			inputSchema: {
 				type: "object",
 				properties: {
-					ecosystem: { type: "string", enum: ["npm", "pypi"], description: "Package ecosystem" },
+					ecosystem: { type: "string", enum: ["npm", "pypi", "github-actions"], description: "Package ecosystem" },
 					name: { type: "string", minLength: 1, description: "Package name (e.g. 'react', 'requests')" },
 					fromVersion: { type: "string", minLength: 1, description: "Current version (e.g. '18.2.0')" },
 					toVersion: { type: "string", minLength: 1, description: "Target version (e.g. '19.0.0')" },
@@ -231,7 +231,7 @@ const SERVER_CARD = {
 						items: {
 							type: "object",
 							properties: {
-								ecosystem: { type: "string", enum: ["npm", "pypi"] },
+								ecosystem: { type: "string", enum: ["npm", "pypi", "github-actions"] },
 								name: { type: "string", minLength: 1 },
 								fromVersion: { type: "string", minLength: 1 },
 								toVersion: { type: "string", minLength: 1 },
@@ -252,7 +252,7 @@ const SERVER_CARD = {
 			description:
 				"Generates a user message instructing the model to analyze a list of dependency changes, then call analyze_packages_bulk to produce a ranked risk report.",
 			arguments: [
-				{ name: "ecosystem", description: "Package ecosystem (npm or pypi)", required: true },
+				{ name: "ecosystem", description: "Package ecosystem (npm, pypi, or github-actions)", required: true },
 				{
 					name: "changes",
 					description:
@@ -266,7 +266,7 @@ const SERVER_CARD = {
 			description:
 				"Generates a user message asking the model to analyze a specific package version bump and explain the risk.",
 			arguments: [
-				{ name: "ecosystem", description: "Package ecosystem (npm or pypi)", required: true },
+				{ name: "ecosystem", description: "Package ecosystem (npm, pypi, or github-actions)", required: true },
 				{ name: "name", description: "Package name", required: true },
 				{ name: "fromVersion", description: "Current version", required: true },
 				{ name: "toVersion", description: "Target version", required: true },
@@ -305,7 +305,7 @@ export default {
 					JSON.stringify({
 						name: "dep-diff-mcp",
 						description:
-							"Translates a lockfile diff into a human-readable upgrade plan for npm and PyPI.",
+							"Translates a lockfile diff into a human-readable upgrade plan for npm, PyPI, and GitHub Actions.",
 						transport: "streamable-http",
 						endpoint: "/mcp",
 						serverCard: "/.well-known/mcp/server-card.json",

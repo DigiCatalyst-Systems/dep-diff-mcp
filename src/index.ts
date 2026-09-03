@@ -13,7 +13,7 @@ export const configSchema = z.object({
 });
 
 const limit = pLimit(8);
-const ecosystemSchema = z.enum(["npm", "pypi"]).describe("Package ecosystem");
+const ecosystemSchema = z.enum(["npm", "pypi", "github-actions"]).describe("Package ecosystem");
 
 const securityFixSchema = z.object({
 	id: z.string().describe("Advisory identifier (e.g. 'GHSA-29mw-wpgm-hmr9' or a CVE)"),
@@ -102,7 +102,7 @@ export function createMcpServer(githubToken?: string): McpServer {
 				"advisories fixed in the range, migration guide links, and a clear recommendation. " +
 				"Use when the user asks about a specific package upgrade ('what changed between react 18 and 19', " +
 				"'is it safe to bump axios from 0.27 to 1.0', 'what does upgrading lodash 4.17.20 to 4.17.21 fix'). " +
-				"Supports npm and pypi. For analyzing many packages at once or a Dependabot batch, " +
+				"Supports npm, pypi, and github-actions (use the action reference as the name, e.g. actions/checkout). For analyzing many packages at once or a Dependabot batch, " +
 				"use analyze_packages_bulk instead.",
 			annotations: {
 				title: "Analyze a single dependency version change",
@@ -233,7 +233,7 @@ export function createMcpServer(githubToken?: string): McpServer {
 				"Generates a user message instructing the model to analyze a list of dependency " +
 				"changes, then call analyze_packages_bulk to produce a ranked risk report.",
 			argsSchema: {
-				ecosystem: z.enum(["npm", "pypi"]).describe("Package ecosystem"),
+				ecosystem: z.enum(["npm", "pypi", "github-actions"]).describe("Package ecosystem"),
 				changes: z
 					.string()
 					.describe(
@@ -262,7 +262,7 @@ export function createMcpServer(githubToken?: string): McpServer {
 				"Generates a user message asking the model to analyze a specific package version bump " +
 				"and explain the risk.",
 			argsSchema: {
-				ecosystem: z.enum(["npm", "pypi"]).describe("Package ecosystem"),
+				ecosystem: z.enum(["npm", "pypi", "github-actions"]).describe("Package ecosystem"),
 				name: z.string().describe("Package name"),
 				fromVersion: z.string().describe("Current version"),
 				toVersion: z.string().describe("Target version"),
