@@ -209,6 +209,12 @@ Analyze up to 50 package upgrades in parallel. Returns packages ranked by risk (
 - **Migration links** — upgrade guide URLs found in release notes
 - **Recommendation** — single-line verdict + level
 
+Both tools return this twice: as the JSON text block shown above, and as MCP
+[structured content](https://modelcontextprotocol.io/specification/2025-06-18/server/tools#structured-content)
+validated against a declared `outputSchema`. A client that supports structured output can read
+`recommendationLevel` or `securityFixes[]` straight off the response instead of re-parsing the text.
+Clients that don't are unaffected — the text block is unchanged.
+
 ## Supported ecosystems
 
 - npm
