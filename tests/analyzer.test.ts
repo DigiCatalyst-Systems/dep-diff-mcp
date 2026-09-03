@@ -323,6 +323,75 @@ describe("extractBreakingChanges", () => {
 		assert.match(out[0]!, /Caching is now automatic\. Upgrade the action to use node24\. Your runner/);
 	});
 
+	// Real shape of actions/setup-node v5.0.0: a marker-only "Breaking Changes"
+	// heading whose body is two bullets, each followed by prose that carries the
+	// actionable detail. Condensing the lot into one string buried the node24
+	// runner requirement at the end of a paragraph.
+	it("splits a section into one entry per bullet", () => {
+		const body = [
+			"## What's Changed",
+			"",
+			"### Breaking Changes",
+			"* Enhance caching with automatic package manager detection by @a in https://github.com/actions/setup-node/pull/1348",
+			"",
+			"This update introduces automatic caching when a valid `packageManager` field is present.",
+			"```yaml",
+			"steps:",
+			"  - uses: actions/setup-node@v5",
+			"```",
+			"* Upgrade action to use node24 by @b in https://github.com/actions/setup-node/pull/1325",
+			"",
+			"Make sure your runner is on version v2.327.1 or later to ensure compatibility.",
+		].join("\n");
+		const out = extractBreakingChanges([{ tag_name: "v5.0.0", body }]);
+		assert.equal(out.length, 2, JSON.stringify(out, null, 1));
+		assert.match(out[0]!, /^v5\.0\.0: Enhance caching with automatic package manager detection/);
+		assert.match(out[1]!, /^v5\.0\.0: Upgrade action to use node24/);
+	});
+
+	it("keeps the prose that follows a bullet, where the detail lives", () => {
+		const body = [
+			"### Breaking Changes",
+			"* Upgrade action to use node24 by @b in https://github.com/actions/setup-node/pull/1325",
+			"",
+			"Make sure your runner is on version v2.327.1 or later to ensure compatibility.",
+		].join("\n");
+		const out = extractBreakingChanges([{ tag_name: "v5.0.0", body }]);
+		assert.equal(out.length, 1);
+		assert.match(out[0]!, /v2\.327\.1 or later/);
+	});
+
+	it("drops a fenced block from a bullet's prose", () => {
+		const body = [
+			"### Breaking",
+			"* Caching is automatic now",
+			"",
+			"Disable it like this:",
+			"```yaml",
+			"package-manager-cache: false",
+			"```",
+		].join("\n");
+		const out = extractBreakingChanges([{ tag_name: "v5.0.0", body }]);
+		assert.equal(out.length, 1);
+		assert.ok(!/package-manager-cache: false/.test(out[0]!), out[0]);
+	});
+
+	it("still condenses a section that has no bullets", () => {
+		const body = "## Breaking\nThe parse option was removed.";
+		const out = extractBreakingChanges([{ tag_name: "v2.0.0", body }]);
+		assert.deepEqual(out, ["v2.0.0: The parse option was removed."]);
+	});
+
+	// A bullet under a "Breaking Changes" heading is caught by the section split
+	// and by the bullet scan, which reported each change twice and doubled the count.
+	it("reports a change once when both paths find it", () => {
+		const body = "## Breaking Changes\n- Removed the foo API\n- No longer supports Node 16";
+		assert.deepEqual(extractBreakingChanges([{ tag_name: "v2.0.0", body }]), [
+			"v2.0.0: Removed the foo API",
+			"v2.0.0: No longer supports Node 16",
+		]);
+	});
+
 	it("ignores non-breaking bullets", () => {
 		const releases = [
 			{
