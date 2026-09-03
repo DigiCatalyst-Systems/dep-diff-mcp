@@ -1,0 +1,18 @@
+name: dependency risk
+
+on:
+  pull_request:
+
+# The repository default is read-only, so the comment permission is requested
+# here rather than granted to every workflow.
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  risk:
+    runs-on: ubuntu-latest
+    # Nothing to say about a pull request a human wrote.
+    if: github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]'
+    steps:
+      - uses: DigiCatalyst-Systems/dependabot-risk@efd9cc7b5b4404fe78fd3438fd2ecda42920ba00 # v1.0.1
