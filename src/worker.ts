@@ -40,6 +40,143 @@ export function resolveToken(request: Request, env?: Env): string | undefined {
 	return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
 }
 
+// Mirrors the zod output schemas in index.ts. Smithery scores this card rather than
+// the live tools/list, so the two have to be kept in step.
+const PACKAGE_ANALYSIS_JSON_SCHEMA = {
+	type: "object",
+	properties: {
+		package: { type: "string", description: "Package name that was analyzed" },
+		ecosystem: { type: "string", enum: ["npm", "pypi"], description: "Package ecosystem" },
+		fromVersion: { type: "string", description: "Version being upgraded from" },
+		toVersion: { type: "string", description: "Version being upgraded to" },
+		semverClass: {
+			type: "string",
+			enum: ["major", "minor", "patch", "downgrade", "unknown"],
+			description: "Semver relationship between the two versions",
+		},
+		repoUrl: {
+			type: ["string", "null"],
+			description: "Source repository URL, or null when none could be resolved",
+		},
+		releaseCount: {
+			type: "number",
+			description: "Number of GitHub releases found strictly between the two versions",
+		},
+		breakingChanges: {
+			type: "array",
+			items: { type: "string" },
+			description: "Breaking changes extracted from release notes; empty when none were found",
+		},
+		releaseExcerpts: {
+			type: "array",
+			description:
+				"Raw release-note excerpts, present only as a fallback when a major/minor bump yielded no breaking changes",
+			items: {
+				type: "object",
+				properties: {
+					tag: { type: "string", description: "Release tag the excerpt came from" },
+					excerpt: { type: "string", description: "Short excerpt of the release notes" },
+				},
+				required: ["tag", "excerpt"],
+			},
+		},
+		securityFixes: {
+			type: "array",
+			description: "Advisories affecting fromVersion that are resolved at toVersion",
+			items: {
+				type: "object",
+				properties: {
+					id: { type: "string", description: "Advisory identifier (e.g. 'GHSA-29mw-wpgm-hmr9' or a CVE)" },
+					summary: { type: "string", description: "One-line description of the advisory" },
+					severity: {
+						type: "string",
+						description: "Severity as reported by OSV (e.g. 'LOW', 'MODERATE', 'HIGH', 'CRITICAL')",
+					},
+				},
+				required: ["id", "summary", "severity"],
+			},
+		},
+		migrationLinks: {
+			type: "array",
+			items: { type: "string" },
+			description: "Migration or upgrade guide URLs found in release notes",
+		},
+		recommendation: { type: "string", description: "Single-line verdict explaining the recommendation level" },
+		recommendationLevel: {
+			type: "string",
+			enum: ["safe", "likely-safe", "review", "caution", "security"],
+			description: "Risk classification, used to rank packages in bulk results",
+		},
+	},
+	required: [
+		"package",
+		"ecosystem",
+		"fromVersion",
+		"toVersion",
+		"semverClass",
+		"repoUrl",
+		"releaseCount",
+		"breakingChanges",
+		"securityFixes",
+		"migrationLinks",
+		"recommendation",
+		"recommendationLevel",
+	],
+};
+
+const FAILED_ANALYSIS_JSON_SCHEMA = {
+	type: "object",
+	description: "A package whose analysis rejected, reported in place rather than dropped",
+	properties: {
+		package: { type: "string", description: "Package name whose analysis failed" },
+		error: { type: "string", description: "Why the analysis could not be completed" },
+		recommendationLevel: {
+			type: "string",
+			enum: ["review"],
+			description:
+				"Always 'review' — a package that could not be analyzed cannot be cleared automatically",
+		},
+	},
+	required: ["package", "error", "recommendationLevel"],
+};
+
+const BULK_SUMMARY_JSON_SCHEMA = {
+	type: "object",
+	properties: {
+		totalPackages: { type: "number", description: "Number of package changes submitted" },
+		bySemverClass: {
+			type: "object",
+			description: "Breakdown of the batch by semver class",
+			properties: {
+				major: { type: "number", description: "Count of major bumps" },
+				minor: { type: "number", description: "Count of minor bumps" },
+				patch: { type: "number", description: "Count of patch bumps" },
+			},
+			required: ["major", "minor", "patch"],
+		},
+		securityFixesTotal: {
+			type: "number",
+			description: "Total security advisories resolved across the whole batch",
+		},
+		packagesWithBreakingChanges: {
+			type: "number",
+			description: "How many packages had at least one breaking change",
+		},
+		packages: {
+			type: "array",
+			description: "Per-package results, ranked security > caution > review > likely-safe > safe",
+			items: { anyOf: [PACKAGE_ANALYSIS_JSON_SCHEMA, FAILED_ANALYSIS_JSON_SCHEMA] },
+		},
+	},
+	required: [
+		"totalPackages",
+		"bySemverClass",
+		"securityFixesTotal",
+		"packagesWithBreakingChanges",
+		"packages",
+	],
+};
+
 const SERVER_CARD = {
 	serverInfo: {
 		name: "dep-diff",
@@ -70,6 +207,7 @@ const SERVER_CARD = {
 				},
 				required: ["ecosystem", "name", "fromVersion", "toVersion"],
 			},
+			outputSchema: PACKAGE_ANALYSIS_JSON_SCHEMA,
 		},
 		{
 			name: "analyze_packages_bulk",
@@ -104,6 +242,7 @@ const SERVER_CARD = {
 				},
 				required: ["changes"],
 			},
+			outputSchema: BULK_SUMMARY_JSON_SCHEMA,
 		},
 	],
 	resources: [],
