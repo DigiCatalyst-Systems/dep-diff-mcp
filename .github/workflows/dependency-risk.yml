@@ -13,6 +13,10 @@ jobs:
   risk:
     runs-on: ubuntu-latest
     # Nothing to say about a pull request a human wrote.
-    if: github.actor == 'dependabot[bot]' || github.actor == 'renovate[bot]'
+    # The PR author, not github.actor -- the actor is whoever triggered the event,
+    # so a maintainer reopening or pushing to a bot's branch would skip the check.
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' ||
+      github.event.pull_request.user.login == 'renovate[bot]'
     steps:
       - uses: DigiCatalyst-Systems/dependabot-risk@efd9cc7b5b4404fe78fd3438fd2ecda42920ba00 # v1.0.1
