@@ -1,5 +1,6 @@
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { createMcpServer } from "./index.js";
+import { SERVER_VERSION } from "./version.js";
 
 export function resolveTokenFromRequest(request: Request): string | undefined {
 	const url = new URL(request.url);
@@ -180,7 +181,7 @@ const BULK_SUMMARY_JSON_SCHEMA = {
 const SERVER_CARD = {
 	serverInfo: {
 		name: "dep-diff",
-		version: "0.2.4",
+		version: SERVER_VERSION,
 	},
 	authentication: {
 		required: false,

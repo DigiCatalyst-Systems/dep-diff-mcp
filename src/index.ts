@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import pLimit from "p-limit";
 import { analyzePackageChange, type Ecosystem } from "./analyzer.js";
+import { SERVER_VERSION } from "./version.js";
 
 export const configSchema = z.object({
 	githubToken: z
@@ -89,7 +90,7 @@ const bulkSummaryShape = {
 export function createMcpServer(githubToken?: string): McpServer {
 	const server = new McpServer({
 		name: "dep-diff",
-		version: "0.2.4",
+		version: SERVER_VERSION,
 	});
 
 	server.registerTool(
