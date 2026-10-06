@@ -5,6 +5,10 @@ on:
 
 # The repository default is read-only, so the comment permission is requested
 # here rather than granted to every workflow.
+concurrency:
+  group: dependency-risk-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: write
@@ -12,6 +16,7 @@ permissions:
 jobs:
   risk:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     # Nothing to say about a pull request a human wrote.
     # The PR author, not github.actor -- the actor is whoever triggered the event,
     # so a maintainer reopening or pushing to a bot's branch would skip the check.
