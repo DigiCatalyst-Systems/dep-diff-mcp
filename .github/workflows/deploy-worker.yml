@@ -17,9 +17,9 @@ jobs:
           node-version: '24'
           cache: 'npm'
 
+      # No test run here: a tag is cut from main, and every commit on main
+      # passed ci.yml on its pull request.
       - run: npm ci
-
-      - run: npm test
 
       - uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4
         with:

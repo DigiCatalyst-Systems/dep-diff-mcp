@@ -1,0 +1,37 @@
+#!/bin/sh
+# Runs the full local gate before a push. CI runs only the critical checks to
+# save Actions minutes on the free plan, so this is where the rest of the suite
+# runs. A push that changes only docs/, README.md or CHANGELOG.md
+# skips the gate (CI skips the same paths), and so does a tag or a branch
+# deletion. The gate runs against the working tree, so commit or stash
+# unrelated edits first. Never bypass it with --no-verify. Wire it once per
+# clone: git config core.hooksPath .githooks
+set -eu
+zero=0000000000000000000000000000000000000000
+needs_gate=no
+while read -r local_ref local_sha _remote_ref remote_sha; do
+  case "$local_ref" in refs/tags/*) continue ;; esac
+  [ "$local_sha" = "$zero" ] && continue
+  base=""
+  if [ "$remote_sha" != "$zero" ] && git cat-file -e "$remote_sha" 2>/dev/null; then
+    base=$remote_sha
+  else
+    base=$(git merge-base "$local_sha" origin/main 2>/dev/null || true)
+  fi
+  if [ -z "$base" ]; then
+    needs_gate=yes
+    continue
+  fi
+  for file in $(git diff --name-only "$base" "$local_sha"); do
+    case "$file" in
+      docs/*|README.md|CHANGELOG.md) ;;
+      *) needs_gate=yes ;;
+    esac
+  done
+done
+if [ "$needs_gate" = no ]; then
+  echo "pre-push: prose only, local gate skipped"
+  exit 0
+fi
+echo "pre-push: running the full local gate (sh scripts/verify.sh)"
+exec sh scripts/verify.sh
