@@ -6,4 +6,4 @@
  * from package.json instead -- the same mirror-plus-test arrangement that keeps
  * packageAnalysisShape in step with PackageAnalysis.
  */
-export const SERVER_VERSION = "0.3.2";
+export const SERVER_VERSION = "0.3.3";

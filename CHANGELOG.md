@@ -13,6 +13,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - Lockfile-diff parser tool.
 - Re-enable Analytics Engine (or pick an alternative) once on a Workers Paid plan.
 
+## [0.3.3] - 2026-10-29
+
+### Changed
+
+- The package author is DigiCatalyst Systems, and `SECURITY.md` gives `support@digicatalyst.ca` as the email for vulnerability reports.
+
+### Security
+
+- Dependencies updated to clear open npm audit advisories: zod 4.6.7 (memory exhaustion on oversized constrained collections), qs 6.17.1, and wrangler 4.156.0, which brings sharp 0.35.5 and undici 7.30.1.
+
 ## [0.3.2] - 2026-09-03
 
 ### Fixed
@@ -226,7 +236,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - `p-limit(8)` concurrency cap on bulk analysis.
 - `evals.md` with 15 routing prompts for tool-description verification.
 
-[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.3.2...v0.3.3
 [0.2.4]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/DigiCatalyst-Systems/dep-diff-mcp/compare/v0.2.1...v0.2.2
