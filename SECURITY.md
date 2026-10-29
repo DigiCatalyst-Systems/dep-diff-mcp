@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-**Use [private vulnerability reporting](https://github.com/DigiCatalyst-Systems/dep-diff-mcp/security/advisories/new).** It keeps the report private, threads the conversation, and drafts the advisory in the same place. If you would rather use email, write to <kaustubh@digicatalyst.ca>.
+**Use [private vulnerability reporting](https://github.com/DigiCatalyst-Systems/dep-diff-mcp/security/advisories/new).** It keeps the report private, threads the conversation, and drafts the advisory in the same place. If you would rather use email, write to <support@digicatalyst.ca>.
 
 Please do not open a public issue for a suspected vulnerability.
 

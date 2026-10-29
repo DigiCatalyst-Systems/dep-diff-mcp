@@ -3,8 +3,8 @@
 	"version": "0.1.9",
 	"description": "Translates a lockfile diff into a human-readable upgrade plan for npm and PyPI.",
 	"author": {
-		"name": "Kaustubh Ghodke",
-		"url": "https://github.com/kaustubhdgr8"
+		"name": "DigiCatalyst Systems",
+		"url": "https://github.com/DigiCatalyst-Systems"
 	},
 	"homepage": "https://github.com/DigiCatalyst-Systems/dep-diff-mcp",
 	"repository": "https://github.com/DigiCatalyst-Systems/dep-diff-mcp",
